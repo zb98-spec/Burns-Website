@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Wine Cellar{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('core.index') }}">&larr; Back to dashboard</a></p>
+
+  <div class="page-header">
+    <h1>Wine Cellar</h1>
+    <div class="page-header-actions">
+      <a class="btn" href="{{ url_for('wine_cellar.history') }}">Tasting History</a>
+      <a class="btn btn--primary" href="{{ url_for('wine_cellar.add') }}">Add Bottle</a>
+    </div>
+  </div>
+
+  <form method="get" class="search-form">
+    <input type="text" name="q" placeholder="Search name, producer, varietal, region..." value="{{ search }}">
+    <button type="submit" class="btn">Search</button>
+    {% if search %}
+      <a class="btn" href="{{ url_for('wine_cellar.index') }}">Clear</a>
+    {% endif %}
+  </form>
+
+  {% if bottles %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Producer</th>
+            <th>Vintage</th>
+            <th>Varietal</th>
+            <th>Region</th>
+            <th>Qty</th>
+            <th>Location</th>
+            <th>Drink window</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bottle in bottles %}
+            {% set status = bottle.drink_status() %}
+            <tr>
+              <td>{{ bottle.name }}</td>
+              <td>{{ bottle.producer or "" }}</td>
+              <td>{{ bottle.vintage or "" }}</td>
+              <td>{{ bottle.varietal or "" }}</td>
+              <td>{{ bottle.region or "" }}</td>
+              <td>{{ bottle.quantity }}</td>
+              <td>{{ bottle.location or "" }}</td>
+              <td>
+                {% if status == "ready" %}
+                  <span class="badge badge--ready">Drink now</span>
+                {% elif status == "past" %}
+                  <span class="badge badge--past">Past window</span>
+                {% elif status == "cellar" %}
+                  <span class="badge badge--cellar">Cellar</span>
+                {% endif %}
+              </td>
+              <td class="row-actions">
+                <a href="{{ url_for('wine_cellar.drink', bottle_id=bottle.id) }}">Drink</a>
+                <a href="{{ url_for('wine_cellar.edit', bottle_id=bottle.id) }}">Edit</a>
+                <form method="post" action="{{ url_for('wine_cellar.delete', bottle_id=bottle.id) }}"
+                      onsubmit="return confirm('Delete {{ bottle.name }}?');" class="inline-form">
+                  <button type="submit" class="link-button">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif search %}
+    <p>No bottles matching &ldquo;{{ search }}&rdquo;.</p>
+  {% else %}
+    <p>No bottles in the cellar yet.</p>
+  {% endif %}
+{% endblock %}

@@ -1,6 +1,9 @@
 import os
 
+import click
 from flask import Flask
+
+from app.extensions import db
 
 
 def create_app(config_object: str | None = None) -> Flask:
@@ -9,6 +12,9 @@ def create_app(config_object: str | None = None) -> Flask:
     app = Flask(__name__)
 
     app.config.from_object(config_object or os.environ.get("APP_CONFIG", "config.Config"))
+    os.makedirs(os.path.join(app.root_path, "..", "instance"), exist_ok=True)
+
+    db.init_app(app)
 
     from app.blueprints.core.routes import core_bp
     from app.blueprints.wine_cellar.routes import wine_cellar_bp
@@ -19,5 +25,13 @@ def create_app(config_object: str | None = None) -> Flask:
     app.register_blueprint(wine_cellar_bp, url_prefix="/wine-cellar")
     app.register_blueprint(grocery_list_bp, url_prefix="/grocery-list")
     app.register_blueprint(recipe_tracker_bp, url_prefix="/recipe-tracker")
+
+    @app.cli.command("init-db")
+    def init_db():
+        """Create all database tables for every registered blueprint."""
+        from app.blueprints.wine_cellar import models  # noqa: F401
+
+        db.create_all()
+        click.echo("Database tables created.")
 
     return app

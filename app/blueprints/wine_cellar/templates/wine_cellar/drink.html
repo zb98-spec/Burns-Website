@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Drink {{ bottle.name }}{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('wine_cellar.index') }}">&larr; Back to wine cellar</a></p>
+  <h1>Log a tasting: {{ bottle.name }}</h1>
+  <p>This will reduce the quantity from {{ bottle.quantity }} to {{ bottle.quantity - 1 }} and add an entry to your tasting history.</p>
+
+  <form method="post" class="stack-form">
+    <label>
+      Date consumed
+      <input type="date" name="consumed_date" value="{{ today }}">
+    </label>
+    <label>
+      Rating (0-100)
+      <input type="number" min="0" max="100" name="rating">
+    </label>
+    <label>
+      Notes
+      <textarea name="notes" rows="4"></textarea>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Log Tasting</button>
+      <a class="btn" href="{{ url_for('wine_cellar.index') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

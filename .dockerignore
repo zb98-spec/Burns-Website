@@ -9,3 +9,7 @@ __pycache__
 !.env.example
 DEVELOPMENT_PLAN.md
 README.md
+instance/
+tests/
+.pytest_cache/
+requirements-dev.txt
