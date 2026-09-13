@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project_name }}{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('core.index') }}">&larr; Back to dashboard</a></p>
+  <h1>{{ project_name }}</h1>
+  <p>This project hasn't been built yet. Check back soon.</p>
+{% endblock %}
