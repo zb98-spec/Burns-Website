@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Tasting History{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('wine_cellar.index') }}">&larr; Back to wine cellar</a></p>
+  <h1>Tasting History</h1>
+
+  {% if entries %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Wine</th>
+            <th>Producer</th>
+            <th>Vintage</th>
+            <th>Rating</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in entries %}
+            <tr>
+              <td>{{ entry.consumed_date }}</td>
+              <td>{{ entry.wine_name }}</td>
+              <td>{{ entry.producer or "" }}</td>
+              <td>{{ entry.vintage or "" }}</td>
+              <td>{{ entry.rating if entry.rating is not none else "" }}</td>
+              <td>{{ entry.notes or "" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No tastings logged yet.</p>
+  {% endif %}
+{% endblock %}

@@ -3,7 +3,7 @@ from flask import Blueprint, render_template
 core_bp = Blueprint(
     "core",
     __name__,
-    template_folder="templates/core",
+    template_folder="templates",
 )
 
 # Each tile links to a project's index route. Status controls the badge
@@ -13,13 +13,13 @@ PROJECTS = [
         "name": "Wine Cellar Tracker",
         "description": "Track bottles, vintages, and drink windows.",
         "endpoint": "wine_cellar.index",
-        "status": "coming soon",
+        "status": "live",
     },
     {
         "name": "Grocery List",
         "description": "A running household grocery list.",
         "endpoint": "grocery_list.index",
-        "status": "coming soon",
+        "status": "live",
     },
     {
         "name": "Recipe Tracker",
@@ -32,4 +32,4 @@ PROJECTS = [
 
 @core_bp.route("/")
 def index():
-    return render_template("index.html", projects=PROJECTS)
+    return render_template("core/index.html", projects=PROJECTS)

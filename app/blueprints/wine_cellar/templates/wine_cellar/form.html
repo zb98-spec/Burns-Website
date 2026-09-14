@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} · Wine Cellar{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('wine_cellar.index') }}">&larr; Back to wine cellar</a></p>
+  <h1>{{ form_title }}</h1>
+
+  <form method="post" class="stack-form">
+    <label>
+      Name*
+      <input type="text" name="name" value="{{ bottle.name if bottle else '' }}" required>
+    </label>
+    <label>
+      Producer
+      <input type="text" name="producer" value="{{ bottle.producer if bottle else '' }}">
+    </label>
+    <div class="form-row">
+      <label>
+        Vintage
+        <input type="number" name="vintage" value="{{ bottle.vintage if bottle else '' }}">
+      </label>
+      <label>
+        Quantity
+        <input type="number" min="0" name="quantity" value="{{ bottle.quantity if bottle else 1 }}">
+      </label>
+    </div>
+    <div class="form-row">
+      <label>
+        Varietal
+        <input type="text" name="varietal" value="{{ bottle.varietal if bottle else '' }}">
+      </label>
+      <label>
+        Region
+        <input type="text" name="region" value="{{ bottle.region if bottle else '' }}">
+      </label>
+    </div>
+    <label>
+      Location
+      <input type="text" name="location" placeholder="e.g. Rack A3" value="{{ bottle.location if bottle else '' }}">
+    </label>
+    <div class="form-row">
+      <label>
+        Drink window start (year)
+        <input type="number" name="drink_window_start" value="{{ bottle.drink_window_start if bottle else '' }}">
+      </label>
+      <label>
+        Drink window end (year)
+        <input type="number" name="drink_window_end" value="{{ bottle.drink_window_end if bottle else '' }}">
+      </label>
+    </div>
+    <div class="form-row">
+      <label>
+        Purchase price
+        <input type="number" step="0.01" name="purchase_price" value="{{ bottle.purchase_price if bottle else '' }}">
+      </label>
+      <label>
+        Purchase date
+        <input type="date" name="purchase_date" value="{{ bottle.purchase_date if bottle else '' }}">
+      </label>
+    </div>
+    <label>
+      Purchase source
+      <input type="text" name="purchase_source" value="{{ bottle.purchase_source if bottle else '' }}">
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Save</button>
+      <a class="btn" href="{{ url_for('wine_cellar.index') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

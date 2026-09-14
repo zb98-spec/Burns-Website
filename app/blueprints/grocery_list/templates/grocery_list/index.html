@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Grocery List{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('core.index') }}">&larr; Back to dashboard</a></p>
+
+  <div class="page-header">
+    <h1>Grocery List</h1>
+    <div class="page-header-actions">
+      <a class="btn" href="{{ url_for('grocery_list.catalog') }}">All Items</a>
+      <a class="btn" href="{{ url_for('grocery_list.add') }}">Add Item</a>
+      {% if has_items %}
+        <form method="post" action="{{ url_for('grocery_list.clear_all') }}"
+              onsubmit="return confirm('Clear the whole list?');" class="inline-form">
+          <button type="submit" class="btn">Clear List</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if groups %}
+    {% for category, items in groups %}
+      <h2 class="category-heading">{{ category }}</h2>
+      <ul class="item-list">
+        {% for item in items %}
+          <li class="item-row">
+            <form method="post" action="{{ url_for('grocery_list.toggle', item_id=item.id) }}" class="inline-form">
+              <input type="hidden" name="next" value="index">
+              <button type="submit" class="checkbox-button" title="Got it">&#9744;</button>
+            </form>
+            <span class="item-name">{{ item.name }}</span>
+            {% if item.quantity %}<span class="item-quantity">{{ item.quantity }}</span>{% endif %}
+            {% if item.note %}<span class="item-note">{{ item.note }}</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endfor %}
+  {% else %}
+    <p>The list is empty. <a href="{{ url_for('grocery_list.add') }}">Add an item</a> or check something back on from <a href="{{ url_for('grocery_list.catalog') }}">All Items</a>.</p>
+  {% endif %}
+{% endblock %}

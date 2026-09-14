@@ -22,10 +22,14 @@ added (or left unbuilt) without touching the others.
 
 ## Current status
 
-The repo currently contains the **shell app only**:
 - Landing page with 3 tiles (Wine Cellar Tracker, Grocery List, Recipe Tracker)
-- Each tile links to a placeholder page ("this project hasn't been built yet")
-- No database connection is wired up yet — `DATABASE_URL` is read from config but unused
+- **Wine Cellar Tracker is built out**: add/edit/delete bottles, a searchable
+  table view, drink-window badges, a "Drink" action that decrements quantity
+  and logs to a separate Tasting History page. See its own section below.
+- Grocery List and Recipe Tracker are still placeholder pages ("this project
+  hasn't been built yet")
+- Flask-SQLAlchemy is wired up, defaulting to a local SQLite file
+  (`instance/dev.db`) until `DATABASE_URL` (Neon) is set
 - No authentication
 
 ## Project structure
@@ -33,24 +37,29 @@ The repo currently contains the **shell app only**:
 ```
 Burns-Website/
 ├── app/
-│   ├── __init__.py              # create_app() factory, registers all blueprints
+│   ├── __init__.py              # create_app() factory, registers all blueprints, `flask init-db` CLI command
+│   ├── extensions.py            # shared `db = SQLAlchemy()` instance
 │   ├── templates/
-│   │   ├── base.html            # shared layout (header, CSS link)
+│   │   ├── base.html            # shared layout (header, flash messages, CSS link)
 │   │   └── placeholder.html     # shared "not built yet" page
 │   ├── static/css/style.css     # single stylesheet, no build step
 │   └── blueprints/
-│       ├── core/                # landing page + tile list
+│       ├── core/                             # landing page + tile list
 │       │   ├── routes.py
 │       │   └── templates/core/index.html
-│       ├── wine_cellar/         # placeholder — build out independently
+│       ├── wine_cellar/                       # built out — see "Wine Cellar Tracker" below
+│       │   ├── routes.py
+│       │   ├── models.py                      # Bottle, TastingHistory
+│       │   └── templates/wine_cellar/         # index, form, drink, history
+│       ├── grocery_list/                      # placeholder — build out independently
 │       │   └── routes.py
-│       ├── grocery_list/        # placeholder — build out independently
-│       │   └── routes.py
-│       └── recipe_tracker/      # placeholder — build out independently
+│       └── recipe_tracker/                    # placeholder — build out independently
 │           └── routes.py
-├── config.py                    # env-based config (SECRET_KEY, DATABASE_URL)
+├── config.py                    # env-based config (SECRET_KEY, DATABASE_URL, SQLALCHEMY_*)
 ├── wsgi.py                      # entrypoint for gunicorn / `python wsgi.py`
+├── tests/                       # pytest suite (currently covers wine_cellar)
 ├── requirements.txt
+├── requirements-dev.txt         # requirements.txt + pytest
 ├── Dockerfile
 ├── .dockerignore
 ├── .gitignore
@@ -58,54 +67,117 @@ Burns-Website/
 └── DEVELOPMENT_PLAN.md          # this file
 ```
 
+**Template naming gotcha:** Flask blueprint template loaders are not scoped
+to the current blueprint — if two blueprints each register a template with
+the same filename (e.g. two `index.html`), whichever blueprint was
+registered first in `create_app()` silently wins for *both* routes. Every
+blueprint here uses `template_folder="templates"` and renders templates as
+`"<blueprint_name>/<template>.html"` (e.g. `"wine_cellar/index.html"`) to
+namespace them — keep following that pattern for new projects.
+
 ## How to build out a project independently
 
 Each project lives entirely inside its own `app/blueprints/<project>/`
-folder. To build one out (e.g. Wine Cellar Tracker):
+folder. Using the Wine Cellar Tracker as the template to copy:
 
-1. Add routes to `app/blueprints/wine_cellar/routes.py`.
-2. Add templates under `app/blueprints/wine_cellar/templates/wine_cellar/`.
-3. If it needs data, add a `models.py` in that folder using SQLAlchemy (or
-   raw `psycopg2`) against the `wine` schema in the shared Neon database.
-4. Flip its `status` from `"coming soon"` to `"live"` in
+1. Add a `models.py` in that folder with `db.Model` classes from
+   `app.extensions`. Prefix table names with the project name
+   (`wine_bottles`, not `bottles`) rather than using a Postgres schema — it
+   keeps the same models working against local SQLite and Neon Postgres
+   with no code changes (see "Database" below).
+2. Add routes to `app/blueprints/<project>/routes.py`, importing that
+   blueprint's own `db` session via `from app.extensions import db`.
+3. Add templates under `app/blueprints/<project>/templates/<project>/`,
+   and register the blueprint with `template_folder="templates"` — render
+   with the `"<project>/<template>.html"` path (see the template naming
+   gotcha above).
+4. If the blueprint defines new models, import them inside the `init_db`
+   CLI command in `app/__init__.py` so `flask init-db` creates their tables
+   too (see how `wine_cellar.models` is imported there).
+5. Flip its `status` from `"coming soon"` to `"live"` in
    `app/blueprints/core/routes.py` (`PROJECTS` list) once the index route
    is ready.
-5. No other blueprint needs to change. The app factory in `app/__init__.py`
+6. No other blueprint needs to change. The app factory in `app/__init__.py`
    already registers all four blueprints, so routing "just works" as soon
    as a project's `index()` view exists.
 
 This keeps projects decoupled while still shipping as one small container
 and one Cloud Run service — no need to stand up new infra per project.
 
+## Wine Cellar Tracker
+
+The first built-out project. Reference implementation for future projects.
+
+- **Data model** (`app/blueprints/wine_cellar/models.py`):
+  - `Bottle` (table `wine_bottles`) — one row per distinct wine, not per
+    physical bottle, with a `quantity` count. Fields: name, producer,
+    vintage, varietal, region, quantity, location, purchase price/date/
+    source, drink window (start/end year).
+  - `TastingHistory` (table `wine_tasting_history`) — one row per bottle
+    actually drunk. Stores a snapshot of the wine's name/producer/vintage
+    at drink time (plus a nullable `bottle_id` FK) so history stays
+    meaningful even if the original bottle entry is later edited or
+    deleted. Holds `consumed_date`, `rating` (0–100), and free-text `notes`.
+- **Behavior:**
+  - The bottle list (`/wine-cellar/`) only shows bottles with `quantity > 0`,
+    sorted by name, with a text search across name/producer/varietal/region.
+  - A "Drink" action (`/wine-cellar/<id>/drink`) decrements `quantity` by 1
+    and creates one `TastingHistory` row (optional rating/notes, date
+    defaults to today). The bottle drops off the main list once quantity
+    hits 0, but the row itself isn't deleted — history keeps referencing it.
+  - Drink-window badges ("Cellar" / "Drink now" / "Past window") are computed
+    from the current year vs. `drink_window_start`/`drink_window_end` —
+    no separate filter view, just inline in the table.
+  - Deleting a bottle (`/wine-cellar/<id>/delete`) nulls out `bottle_id` on
+    any related history rows rather than cascading the delete, so tasting
+    history is never destroyed by cleaning up the cellar list.
+- **Forms:** plain HTML + manual server-side validation (required fields,
+  numeric ranges, drink-window ordering) with flash messages — no
+  Flask-WTF, to stay dependency-light.
+- **Tests:** `tests/test_wine_cellar.py` covers add/edit/delete, the drink
+  → history flow, the quantity-reaches-zero list behavior, and search.
+
 ## Local development
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # includes requirements.txt + pytest
 cp .env.example .env   # fill in SECRET_KEY / DATABASE_URL as needed
-python wsgi.py          # http://localhost:8080
+flask --app wsgi init-db   # creates tables in instance/dev.db (SQLite) or Neon if DATABASE_URL is set
+python wsgi.py              # http://localhost:8080
 ```
+
+Run tests with `pytest` (uses an in-memory SQLite DB, no setup needed).
 
 ## Database (Neon)
 
 - One Neon project for the whole site.
-- Each app that needs persistence gets its own Postgres **schema**
-  (`CREATE SCHEMA wine;`, `CREATE SCHEMA grocery;`, `CREATE SCHEMA recipes;`)
-  inside that one database, rather than separate databases or separate
-  Neon projects.
+- Rather than a Postgres schema per app, tables are **name-prefixed** per
+  project (`wine_bottles`, `wine_tasting_history`, and future
+  `grocery_*` / `recipes_*` tables) inside the one default schema. This was
+  changed from the original schema-per-app plan because Postgres schemas
+  don't translate to SQLite, and prefixed table names let the exact same
+  SQLAlchemy models run locally (SQLite) and in production (Neon Postgres)
+  with zero code changes.
 - `DATABASE_URL` (from `.env` locally, from Cloud Run env vars / Secret
   Manager in production) is the single connection string shared by all
-  blueprints.
-- No ORM is wired up yet. When the first project needs data, add
-  Flask-SQLAlchemy (or keep it to raw `psycopg2`) at that point — avoid
-  adding it before it's needed.
+  blueprints. If unset, `config.py` falls back to a local SQLite file at
+  `instance/dev.db`.
+- **Tables are not created automatically.** Run `flask --app wsgi init-db`
+  once against a fresh database (local SQLite or a new Neon database) to
+  create all registered models' tables. There's no Alembic/migrations yet
+  (see "Wine Cellar Tracker" note above) — schema changes after the first
+  deploy will need a manual `ALTER TABLE` or a full re-run of `init-db`
+  against a fresh database until migrations are added.
 
 ## Docker
 
 ```bash
 docker build -t burns-dashboard .
 docker run -p 8080:8080 --env-file .env burns-dashboard
+# first run only (or after adding new models): create tables inside the container
+docker exec <container_name> flask --app wsgi init-db
 ```
 
 ## Deploying to Google Cloud Run (manual, for now)
@@ -129,6 +201,11 @@ locally.
 Prefer secrets over `--set-env-vars` for `DATABASE_URL` once this moves
 past personal-project scale: `gcloud secrets create`, then
 `--set-secrets DATABASE_URL=projects/.../secrets/database-url:latest`.
+
+**After the first deploy against a fresh Neon database**, run `flask
+--app wsgi init-db` once with `DATABASE_URL` pointed at Neon (e.g. from your
+own machine with the Neon connection string in your env) to create the
+tables — Cloud Run doesn't run this automatically.
 
 ## Future: CI/CD via GitHub Actions
 
