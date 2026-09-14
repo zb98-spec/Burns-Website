@@ -22,12 +22,17 @@ added (or left unbuilt) without touching the others.
 
 ## Current status
 
-- Landing page with 3 tiles (Wine Cellar Tracker, Grocery List, Recipe Tracker)
+- Landing page with 4 tiles (Wine Cellar Tracker, Grocery List, Recipe
+  Tracker, Honeymoon)
 - **Wine Cellar Tracker is built out**: add/edit/delete bottles, a searchable
   table view, drink-window badges, a "Drink" action that decrements quantity
   and logs to a separate Tasting History page. See its own section below.
-- Grocery List and Recipe Tracker are still placeholder pages ("this project
-  hasn't been built yet")
+- **Grocery List is built out**: a running household list grouped by fixed
+  category, with a separate catalog view of past items to re-add.
+- **Recipe Tracker is built out**: add/edit/delete recipes with structured
+  ingredients (quantity/unit/name rows), fixed cuisine/meal-type categories,
+  search across title and ingredients, and filter by cuisine/meal type. See
+  its own section below.
 - Flask-SQLAlchemy is wired up, defaulting to a local SQLite file
   (`instance/dev.db`) until `DATABASE_URL` (Neon) is set
 - No authentication
@@ -51,10 +56,14 @@ Burns-Website/
 │       │   ├── routes.py
 │       │   ├── models.py                      # Bottle, TastingHistory
 │       │   └── templates/wine_cellar/         # index, form, drink, history
-│       ├── grocery_list/                      # placeholder — build out independently
-│       │   └── routes.py
-│       └── recipe_tracker/                    # placeholder — build out independently
-│           └── routes.py
+│       ├── grocery_list/                      # built out — item list + catalog
+│       │   ├── routes.py
+│       │   ├── models.py                      # GroceryItem
+│       │   └── templates/grocery_list/        # index, catalog, form
+│       └── recipe_tracker/                    # built out — see "Recipe Tracker" below
+│           ├── routes.py
+│           ├── models.py                      # Recipe, RecipeIngredient
+│           └── templates/recipe_tracker/      # index, form, detail
 ├── config.py                    # env-based config (SECRET_KEY, DATABASE_URL, SQLALCHEMY_*)
 ├── wsgi.py                      # entrypoint for gunicorn / `python wsgi.py`
 ├── tests/                       # pytest suite (currently covers wine_cellar)
@@ -136,6 +145,72 @@ The first built-out project. Reference implementation for future projects.
   Flask-WTF, to stay dependency-light.
 - **Tests:** `tests/test_wine_cellar.py` covers add/edit/delete, the drink
   → history flow, the quantity-reaches-zero list behavior, and search.
+
+## Recipe Tracker
+
+A personal recipe box: store recipes with structured ingredients, search
+and filter by title/ingredient/category. No meal planning, no cook-history
+log, no photo upload in this first pass (see rationale below).
+
+- **Data model** (`app/blueprints/recipe_tracker/models.py`):
+  - `Recipe` (table `recipe_recipes`) — one row per recipe. Fields: title
+    (required), instructions (required, free-text steps), servings
+    (free-text string, e.g. `"4"` or `"4-6"` — not a strict integer, since
+    yields aren't always a single number), prep_time_minutes,
+    cook_time_minutes, cuisine, meal_type, source_url, source_name,
+    created_at.
+  - `RecipeIngredient` (table `recipe_ingredients`) — one row per
+    ingredient line. Fields: recipe_id (FK, `ondelete="CASCADE"`),
+    quantity (free-text string, e.g. `"1 1/2"`, to allow fractions),
+    unit, name (required), sort_order (preserves the ingredient list's
+    order, since SQL row order isn't guaranteed). Unlike the wine cellar's
+    `TastingHistory`, ingredients have no meaning outside their recipe, so
+    deleting a recipe cascades to delete its ingredients (no soft-orphan
+    pattern needed here).
+  - `cuisine` and `meal_type` are plain string columns validated against a
+    **fixed list defined in code** (not a database-backed tag table) —
+    rendered as `<select>` dropdowns in the form. Starting lists (easy to
+    extend later by editing the constant, no migration needed since it's
+    not its own table):
+    - Cuisine: American, Italian, Mexican, Chinese, Indian, French,
+      Mediterranean, Thai, Japanese, Other
+    - Meal type: Breakfast, Lunch, Dinner, Dessert, Snack, Appetizer,
+      Side, Drink
+- **Behavior:**
+  - `/recipe-tracker/` — index: searchable (title + ingredient name) and
+    filterable (cuisine, meal type) list view, similar in spirit to the
+    wine cellar's search box.
+  - `/recipe-tracker/<id>` — detail view: full ingredient list + instructions.
+  - `/recipe-tracker/new` and `/recipe-tracker/<id>/edit` — add/edit form.
+    Ingredient rows are added/removed client-side with plain vanilla JS
+    (matching the "minimal vanilla JS" stack decision) and posted as
+    same-named repeated form fields (`ingredient_quantity`,
+    `ingredient_unit`, `ingredient_name`), parsed server-side by
+    position — this is the one place more custom parsing logic is needed
+    than the wine cellar form required, since wine cellar has no
+    repeating sub-rows. At least one ingredient with a name is required.
+  - `/recipe-tracker/<id>/delete` — deletes the recipe; ingredients
+    cascade-delete with it.
+  - Forms use the same plain HTML + manual server-side validation pattern
+    as wine cellar (required fields, no Flask-WTF).
+- **Ingredient data shape is deliberately structured** (not a single free
+  text block) specifically so a *future* "send ingredients to Grocery
+  List" feature can consume it without a data-model rewrite — that
+  integration itself is out of scope for this build; Grocery List and
+  Recipe Tracker stay independently decoupled for now, per the existing
+  "keep projects decoupled" approach.
+- **Explicitly deferred to `FEATURE_BACKLOG.md`:** photo upload (blocked
+  on real object storage — Cloud Run's filesystem doesn't persist, same
+  issue as the SQLite fallback noted there) and a cook-history/ratings
+  log (could mirror `TastingHistory` later if wanted).
+- **Tests:** `tests/test_recipe_tracker.py`, mirroring
+  `tests/test_wine_cellar.py` — add/edit/delete a recipe with multiple
+  ingredients, cascade-delete of ingredients, search, and cuisine/meal-type
+  filtering.
+- **Rollout:** Recipe Tracker's `status` is `"live"` in
+  `app/blueprints/core/routes.py` (`PROJECTS` list), and
+  `recipe_tracker.models` is imported in the `init-db` CLI command in
+  `app/__init__.py` so `flask init-db` creates its tables.
 
 ## Local development
 

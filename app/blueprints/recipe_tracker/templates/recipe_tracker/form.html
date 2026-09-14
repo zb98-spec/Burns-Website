@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} · Recipe Tracker{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('recipe_tracker.index') }}">&larr; Back to recipes</a></p>
+  <h1>{{ form_title }}</h1>
+
+  <form method="post" class="stack-form">
+    <label>
+      Title*
+      <input type="text" name="title" value="{{ recipe.title if recipe else '' }}" required>
+    </label>
+
+    <div class="form-row">
+      <label>
+        Cuisine
+        <select name="cuisine">
+          <option value="">—</option>
+          {% for c in cuisines %}
+            <option value="{{ c }}" {% if recipe and recipe.cuisine == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Meal type
+        <select name="meal_type">
+          <option value="">—</option>
+          {% for m in meal_types %}
+            <option value="{{ m }}" {% if recipe and recipe.meal_type == m %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label>
+        Servings
+        <input type="text" name="servings" placeholder="e.g. 4 or 4-6" value="{{ recipe.servings if recipe else '' }}">
+      </label>
+      <label>
+        Prep time (minutes)
+        <input type="number" min="0" name="prep_time_minutes" value="{{ recipe.prep_time_minutes if recipe else '' }}">
+      </label>
+      <label>
+        Cook time (minutes)
+        <input type="number" min="0" name="cook_time_minutes" value="{{ recipe.cook_time_minutes if recipe else '' }}">
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label>
+        Source name
+        <input type="text" name="source_name" placeholder="e.g. Mom's cookbook" value="{{ recipe.source_name if recipe else '' }}">
+      </label>
+      <label>
+        Source URL
+        <input type="url" name="source_url" value="{{ recipe.source_url if recipe else '' }}">
+      </label>
+    </div>
+
+    <div>
+      <label>Ingredients*</label>
+      <div id="ingredient-rows" class="ingredient-rows">
+        {% for ingredient in ingredients %}
+          <div class="ingredient-row">
+            <input type="text" name="ingredient_quantity" placeholder="Qty" value="{{ ingredient.quantity or '' }}">
+            <input type="text" name="ingredient_unit" placeholder="Unit" value="{{ ingredient.unit or '' }}">
+            <input type="text" name="ingredient_name" placeholder="Ingredient" value="{{ ingredient.name or '' }}">
+            <button type="button" class="btn remove-ingredient-row">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+      <button type="button" id="add-ingredient-row" class="btn">+ Add ingredient</button>
+    </div>
+
+    <label>
+      Instructions*
+      <textarea name="instructions" rows="10" required>{{ recipe.instructions if recipe else '' }}</textarea>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Save</button>
+      <a class="btn" href="{{ url_for('recipe_tracker.index') }}">Cancel</a>
+    </div>
+  </form>
+
+  <template id="ingredient-row-template">
+    <div class="ingredient-row">
+      <input type="text" name="ingredient_quantity" placeholder="Qty">
+      <input type="text" name="ingredient_unit" placeholder="Unit">
+      <input type="text" name="ingredient_name" placeholder="Ingredient">
+      <button type="button" class="btn remove-ingredient-row">&times;</button>
+    </div>
+  </template>
+
+  <script>
+    (function () {
+      var rows = document.getElementById("ingredient-rows");
+      var template = document.getElementById("ingredient-row-template");
+
+      document.getElementById("add-ingredient-row").addEventListener("click", function () {
+        rows.appendChild(template.content.cloneNode(true));
+      });
+
+      rows.addEventListener("click", function (event) {
+        if (event.target.classList.contains("remove-ingredient-row")) {
+          var row = event.target.closest(".ingredient-row");
+          if (rows.children.length > 1) {
+            row.remove();
+          } else {
+            row.querySelectorAll("input").forEach(function (input) { input.value = ""; });
+          }
+        }
+      });
+
+      if (rows.children.length === 0) {
+        rows.appendChild(template.content.cloneNode(true));
+      }
+    })();
+  </script>
+{% endblock %}

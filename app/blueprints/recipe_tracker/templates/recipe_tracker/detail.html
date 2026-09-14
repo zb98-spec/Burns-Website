@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}{{ recipe.title }} · Recipe Tracker{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('recipe_tracker.index') }}">&larr; Back to recipes</a></p>
+
+  <div class="page-header">
+    <h1>{{ recipe.title }}</h1>
+    <div class="page-header-actions">
+      <a class="btn" href="{{ url_for('recipe_tracker.edit', recipe_id=recipe.id) }}">Edit</a>
+      <form method="post" action="{{ url_for('recipe_tracker.delete', recipe_id=recipe.id) }}"
+            onsubmit="return confirm('Delete {{ recipe.title }}?');" class="inline-form">
+        <button type="submit" class="btn">Delete</button>
+      </form>
+    </div>
+  </div>
+
+  <p class="recipe-meta">
+    {% if recipe.cuisine %}<span class="badge badge--cellar">{{ recipe.cuisine }}</span>{% endif %}
+    {% if recipe.meal_type %}<span class="badge badge--cellar">{{ recipe.meal_type }}</span>{% endif %}
+    {% if recipe.servings %}<span>Servings: {{ recipe.servings }}</span>{% endif %}
+    {% if recipe.prep_time_minutes %}<span>Prep: {{ recipe.prep_time_minutes }} min</span>{% endif %}
+    {% if recipe.cook_time_minutes %}<span>Cook: {{ recipe.cook_time_minutes }} min</span>{% endif %}
+  </p>
+
+  {% if recipe.source_url or recipe.source_name %}
+    <p class="recipe-source">
+      Source:
+      {% if recipe.source_url %}
+        <a href="{{ recipe.source_url }}" target="_blank" rel="noopener noreferrer">{{ recipe.source_name or recipe.source_url }}</a>
+      {% else %}
+        {{ recipe.source_name }}
+      {% endif %}
+    </p>
+  {% endif %}
+
+  <h2>Ingredients</h2>
+  <ul class="ingredient-list">
+    {% for ingredient in recipe.ingredients %}
+      <li>
+        {% if ingredient.quantity %}{{ ingredient.quantity }}{% endif %}
+        {% if ingredient.unit %}{{ ingredient.unit }}{% endif %}
+        {{ ingredient.name }}
+      </li>
+    {% endfor %}
+  </ul>
+
+  <h2>Instructions</h2>
+  <p class="recipe-instructions">{{ recipe.instructions }}</p>
+{% endblock %}
