@@ -1,5 +1,6 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 
+from app.blueprints.auth.access import require_project_access
 from app.extensions import db
 
 from .models import CATEGORIES, GroceryItem
@@ -9,6 +10,11 @@ grocery_list_bp = Blueprint(
     __name__,
     template_folder="templates",
 )
+
+
+@grocery_list_bp.before_request
+def _check_access():
+    require_project_access("grocery_list")
 
 
 def _item_from_form(form, errors):

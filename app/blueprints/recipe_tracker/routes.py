@@ -1,6 +1,7 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from sqlalchemy import func, or_
 
+from app.blueprints.auth.access import require_project_access
 from app.extensions import db
 
 from .models import CUISINES, MEAL_TYPES, Recipe, RecipeIngredient
@@ -10,6 +11,11 @@ recipe_tracker_bp = Blueprint(
     __name__,
     template_folder="templates",
 )
+
+
+@recipe_tracker_bp.before_request
+def _check_access():
+    require_project_access("recipe_tracker")
 
 
 def _parse_optional_int(form, field, label, errors):

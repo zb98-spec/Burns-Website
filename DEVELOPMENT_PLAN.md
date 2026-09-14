@@ -11,7 +11,7 @@ added (or left unbuilt) without touching the others.
 | Backend | Flask (app factory + Blueprints) |
 | Rendering | Server-rendered Jinja2 templates, minimal vanilla JS |
 | Styling | Plain hand-written CSS, no framework/build step |
-| Auth | None for MVP — reconsider once a project stores anything sensitive |
+| Auth | Local accounts (username + password, Flask-Login), whole site behind login, per-project access grants managed by admins — see "Authentication & Access Control" below |
 | Structure | One Flask app, one Blueprint per project, one Cloud Run service |
 | Database | One Neon Postgres project; tables are name-prefixed per app (`wine_*`, `grocery_*`, `recipe_*`) in the default schema — see "Database (Neon)" below |
 | Schema changes | Flask-Migrate/Alembic — versioned migration scripts, not ad hoc `create_all()` — see "Database migrations" below |
@@ -36,7 +36,10 @@ added (or left unbuilt) without touching the others.
   its own section below.
 - Flask-SQLAlchemy is wired up, defaulting to a local SQLite file
   (`instance/dev.db`) until `DATABASE_URL` (Neon) is set
-- No authentication
+- **The whole site requires login.** Accounts are local (username +
+  password, no email), self-service signup starts with zero project
+  access, and admins grant per-project access + can promote other admins.
+  See "Authentication & Access Control" below.
 
 ## Project structure
 
@@ -61,10 +64,18 @@ Burns-Website/
 │       │   ├── routes.py
 │       │   ├── models.py                      # GroceryItem
 │       │   └── templates/grocery_list/        # index, catalog, form
-│       └── recipe_tracker/                    # built out — see "Recipe Tracker" below
+│       ├── recipe_tracker/                    # built out — see "Recipe Tracker" below
+│       │   ├── routes.py
+│       │   ├── models.py                      # Recipe, RecipeIngredient
+│       │   └── templates/recipe_tracker/      # index, form, detail
+│       ├── auth/                              # login, logout, create-account — see "Authentication" below
+│       │   ├── routes.py
+│       │   ├── models.py                      # User, UserProjectAccess
+│       │   ├── access.py                      # require_project_access(), safe_redirect_target()
+│       │   └── templates/auth/                # login, create_account
+│       └── admin/                             # admin-only user/permission management
 │           ├── routes.py
-│           ├── models.py                      # Recipe, RecipeIngredient
-│           └── templates/recipe_tracker/      # index, form, detail
+│           └── templates/admin/               # users
 ├── migrations/                  # Flask-Migrate/Alembic — versioned schema changes, see
 │                                 # "Database migrations" below. Committed, not gitignored.
 ├── config.py                    # env-based config (SECRET_KEY, DATABASE_URL, SQLALCHEMY_*)
@@ -108,12 +119,19 @@ folder. Using the Wine Cellar Tracker as the template to copy:
    review the generated script under `migrations/versions/` before
    committing it. See "Database migrations" below for the full workflow —
    models alone don't create tables anymore; the migration does.
-5. Flip its `status` from `"coming soon"` to `"live"` in
+5. Add an access-control gate: a `"key"` entry in its `PROJECTS` dict (used
+   by `UserProjectAccess`, independent of routing), and a one-line
+   `@<project>_bp.before_request` calling
+   `require_project_access("<key>")` (from `app.blueprints.auth.access`) —
+   copy the pattern from any existing project blueprint. Without this, the
+   project would be reachable by any logged-in user regardless of what an
+   admin granted them.
+6. Flip its `status` from `"coming soon"` to `"live"` in
    `app/blueprints/core/routes.py` (`PROJECTS` list) once the index route
    is ready.
-6. No other blueprint needs to change. The app factory in `app/__init__.py`
-   already registers all four blueprints, so routing "just works" as soon
-   as a project's `index()` view exists.
+7. No other blueprint needs to change. The app factory in `app/__init__.py`
+   already registers all blueprints, so routing "just works" as soon as a
+   project's `index()` view exists.
 
 This keeps projects decoupled while still shipping as one small container
 and one Cloud Run service — no need to stand up new infra per project.
@@ -217,6 +235,74 @@ log, no photo upload in this first pass (see rationale below).
   (`recipe_recipes`, `recipe_ingredients`) are part of the baseline
   migration in `migrations/versions/` — see "Database migrations" below.
 
+## Authentication & Access Control
+
+The whole site sits behind a login. There's no email anywhere in this
+system — accounts are just a username and password.
+
+- **Data model** (`app/blueprints/auth/models.py`):
+  - `User` (table `auth_users`, `UserMixin` for Flask-Login) — username
+    (unique, stored/compared lowercase), password_hash (werkzeug's
+    `generate_password_hash`/`check_password_hash`, no extra hashing
+    dependency), `is_admin`, created_at.
+  - `UserProjectAccess` (table `auth_user_project_access`) — join table:
+    `(user_id, project_key)`, unique together. A row's presence is the
+    grant; there's no "denied" state to represent. `ondelete="CASCADE"` so
+    deleting a user (no admin UI for that yet, see `FEATURE_BACKLOG.md`)
+    would clean up its grants automatically.
+  - `User.has_access(project_key)` is the single source of truth for "can
+    this user see/use this project" — it returns `True` unconditionally
+    for admins (they bypass all per-project grants) before checking
+    `UserProjectAccess`. Both the dashboard's tile filtering and each
+    project blueprint's access gate call this same method.
+- **Two-layer access control:**
+  1. **Global "must be logged in"** — one `@app.before_request` hook in
+     `create_app()`, exempting only `auth.login`, `auth.create_account`,
+     and `static`. Redirects anonymous visitors to `/login?next=<path>`.
+  2. **Per-project "must have this project"** — `require_project_access(key)`
+     (`app/blueprints/auth/access.py`), called from a one-line
+     `before_request` in each project blueprint (`wine_cellar`,
+     `grocery_list`, `recipe_tracker`, `honeymoon`). 403s if the user
+     lacks that project's grant. New projects need this too — see step 5
+     in "How to build out a project independently" above.
+  - The dashboard (`core.index()`) filters `PROJECTS` down to what the
+    current user can see before rendering — a tile without access doesn't
+    appear at all, rather than showing disabled.
+- **`next`-param redirect is validated** (`safe_redirect_target()` in
+  `access.py`) — only same-site relative paths are honored, to close an
+  open-redirect hole a crafted `?next=` could otherwise open.
+- **Session cookies are hardened** in `config.py`:
+  `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE="Lax"`, and
+  `SESSION_COOKIE_SECURE` conditional on `DATABASE_URL` being set (i.e.
+  prod) — hardcoding `Secure` would silently break login over plain-HTTP
+  local dev.
+- **CSRF (Flask-WTF) is explicitly deferred** — see `FEATURE_BACKLOG.md`.
+  `SameSite=Lax` above is a partial mitigation, not a replacement.
+- **Self-service signup**: `/create-account` — new accounts start with
+  `is_admin=False` and zero `UserProjectAccess` rows. An admin has to
+  grant access to anything before the account is useful.
+- **Admin panel** (`app/blueprints/admin/`, `/admin`, gated by
+  `current_user.is_admin`): lists every user with a checkbox per project
+  key, an "is admin" toggle (an admin can't demote themselves, to avoid
+  accidentally locking everyone out), and a "set new password" action —
+  the only account-recovery path that exists, since there's no email to
+  send a reset link to.
+- **Bootstrapping the first admin**: `flask create-admin` (prompts for
+  username/password if not passed as `--username`/`--password`) — needed
+  once per fresh database (local, or Neon after first deploy — see
+  "Deploying" below), since a brand-new database has no admin at all.
+- **Login errors are generic** ("Invalid username or password" for both
+  unknown-username and wrong-password) to avoid trivial username
+  enumeration via the login form.
+- **Tests**: `tests/test_auth.py` (signup, login/logout, the `next`
+  round-trip, the open-redirect rejection, per-project 403 vs 200,
+  dashboard filtering, the `create-admin` CLI) and `tests/test_admin.py`
+  (admin-only 403, granting/revoking access, promote/demote, the
+  self-demote guard, password reset). `tests/conftest.py`'s `client`
+  fixture logs in a non-admin user with access to every project, so all
+  the pre-existing feature tests keep exercising the same routes as
+  before auth existed, unmodified.
+
 ## Local development
 
 ```bash
@@ -224,6 +310,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt   # includes requirements.txt + pytest
 cp .env.example .env   # fill in SECRET_KEY / DATABASE_URL as needed
+flask --app wsgi create-admin   # first time only — prompts for username/password
 python wsgi.py          # http://localhost:8080
 ```
 
@@ -358,6 +445,15 @@ Cloud Run doesn't run this automatically — see "Database migrations" above
 for the full workflow and why `db upgrade` (not the old `init-db`) is what
 this job runs.
 
+**After the first deploy that includes the auth tables**, Neon has zero
+admins until you run this once (from a machine with `DATABASE_URL` pointed
+at Neon — see "Authentication & Access Control" above):
+```bash
+DATABASE_URL=<neon-connection-string> flask --app wsgi create-admin
+```
+Without this, `/admin` is unreachable on the live site — nobody can grant
+themselves or anyone else access to anything.
+
 ## Future: CD (auto-deploy) via GitHub Actions
 
 CI already exists — `.github/workflows/ci.yml` runs the pytest suite on
@@ -378,8 +474,6 @@ ready to automate:
 
 ## Open items for later (not needed for the current placeholder stage)
 
-- Whether the three projects eventually need per-project auth even though
-  the dashboard itself doesn't.
 - Whether a custom domain gets mapped to the Cloud Run service.
 - Whether any project ends up needing background jobs / scheduled tasks
   (e.g. a grocery list reminder) — Cloud Run + Cloud Scheduler would be the

@@ -18,6 +18,25 @@ into active work when they're ready to be tackled.
   become frequent enough that forgetting the migrate step is a real risk.
 - Confirm a GCP billing budget alert exists on the `burns-website-prod`
   project.
+- **CSRF protection (Flask-WTF).** Explicitly deferred when scoping
+  login/accounts — every form on the site (including the new login/admin
+  ones) currently has no CSRF token. Mitigated partially for now by
+  `SESSION_COOKIE_SAMESITE = "Lax"` (see `config.py`), which stops the
+  session cookie from riding along on cross-site POSTs in compliant
+  browsers, but that's a stopgap, not equivalent to real CSRF tokens.
+- **No rate limiting on `/login`.** Acceptable for a small personal/family
+  app for now, but worth adding (e.g. a simple attempt counter, or
+  Flask-Limiter) if this is ever exposed more broadly.
+- **Test DB isolation is slightly off**: `tests/conftest.py`'s `app`
+  fixture overrides `SQLALCHEMY_DATABASE_URI` to `sqlite:///:memory:`
+  *after* `create_app()` already ran its own `db.create_all()` against the
+  real local-SQLite fallback path (`instance/dev.db`) — so a pytest run
+  still creates/touches that file on disk, even though the actual engine
+  Flask-SQLAlchemy binds for query purposes correctly ends up pointing at
+  `:memory:` (confirmed: tests pass, and don't affect Neon). Purely
+  cosmetic/hygiene, not a live bug — the clean fix is a dedicated
+  `TestConfig` in `config.py` with the in-memory URI set from the start,
+  passed to `create_app()` instead of overriding `app.config` afterward.
 
 ## Product ideas (uncommitted, just capturing)
 
