@@ -1,5 +1,6 @@
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from flask_login import current_user, login_required, login_user, logout_user
+from flask_login import current_user, login_user, logout_user
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 
@@ -37,8 +38,10 @@ def login():
 
 
 @auth_bp.route("/logout", methods=["POST"])
-@login_required
 def logout():
+    # No @login_required: the global before_request login gate in
+    # create_app() already guarantees an authenticated user here (this
+    # endpoint is never exempt from it), so this would be unreachable code.
     logout_user()
     flash("Logged out.", "success")
     return redirect(url_for("auth.login"))
@@ -73,7 +76,15 @@ def create_account():
         user = User(username=username)
         user.set_password(password)
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # Concurrent signup with the same username raced past the
+            # existence check above and won; treat it the same as if we'd
+            # caught it there instead of surfacing a 500.
+            db.session.rollback()
+            flash("That username is already taken.", "error")
+            return render_template("auth/create_account.html", username=username)
 
         login_user(user)
         flash("Account created. An admin needs to grant you access to any projects.", "success")

@@ -19,10 +19,15 @@ class Config:
     # Session cookie hardening. CSRF tokens (Flask-WTF) are deferred (see
     # FEATURE_BACKLOG.md), so SameSite=Lax is doing real work here: it stops
     # the session cookie from being sent on cross-site POSTs at all in
-    # compliant browsers. SECURE must stay conditional on DATABASE_URL being
-    # set (i.e. "are we in prod") — local dev is plain HTTP, and a hardcoded
-    # Secure cookie would silently never get set there, making login look
-    # like it worked and then immediately appear logged-out.
+    # compliant browsers. SECURE defaults to "does DATABASE_URL look like
+    # prod" but is explicitly overridable via SESSION_COOKIE_SECURE — needed
+    # because local dev can also point DATABASE_URL at a real Postgres
+    # database for testing (see DEVELOPMENT_PLAN.md) while still being
+    # served over plain HTTP, where a hardcoded Secure cookie would silently
+    # never get set, making login look like it worked and then immediately
+    # appear logged-out.
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
-    SESSION_COOKIE_SECURE = bool(DATABASE_URL)
+    SESSION_COOKIE_SECURE = os.environ.get(
+        "SESSION_COOKIE_SECURE", "true" if DATABASE_URL else "false"
+    ).lower() == "true"
