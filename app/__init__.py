@@ -42,6 +42,7 @@ def create_app(config_object: str | None = None) -> Flask:
         """Create all database tables for every registered blueprint."""
         from app.blueprints.wine_cellar import models  # noqa: F401
         from app.blueprints.grocery_list import models  # noqa: F401
+        from app.blueprints.recipe_tracker import models  # noqa: F401
 
         db.create_all()
         click.echo("Database tables created.")

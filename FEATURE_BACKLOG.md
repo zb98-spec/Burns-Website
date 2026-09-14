@@ -35,5 +35,14 @@ into active work when they're ready to be tackled.
 - Wine Cellar: CSV import for bringing in an existing spreadsheet of
   bottles (explicitly deferred when originally scoped — manual entry only
   for the first build).
-- Grocery List / Recipe Tracker: no specific ideas yet — revisit once
-  Recipe Tracker is built out.
+- Recipe Tracker: photo upload — deferred until real object storage (e.g.
+  a GCS bucket) exists, since Cloud Run's filesystem doesn't persist
+  (same root cause as the SQLite-doesn't-persist issue above).
+- Recipe Tracker: a cook-history/ratings log (did I make this, when, how
+  did it turn out) — could mirror the wine cellar's `TastingHistory`
+  pattern later if wanted; explicitly out of scope for the first build.
+- Recipe Tracker → Grocery List: "send ingredients to grocery list" once
+  Grocery List itself is built. The Recipe Tracker ingredient data model
+  is being built as a structured list (quantity/unit/name rows) rather
+  than free text specifically so this stays possible without a rewrite.
+- Grocery List: no specific ideas yet — not yet scoped.

@@ -25,7 +25,7 @@ PROJECTS = [
         "name": "Recipe Tracker",
         "description": "Save and organize recipes.",
         "endpoint": "recipe_tracker.index",
-        "status": "coming soon",
+        "status": "live",
     },
     {
         "name": "Honeymoon",

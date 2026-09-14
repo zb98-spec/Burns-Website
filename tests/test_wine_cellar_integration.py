@@ -44,10 +44,10 @@ def test_grocery_list_is_live(client):
     assert b"Grocery List" in response.data
 
 
-def test_recipe_tracker_shows_placeholder(client):
+def test_recipe_tracker_is_live(client):
     response = client.get("/recipe-tracker/")
     assert response.status_code == 200
-    assert b"hasn't been built yet" in response.data
+    assert b"Recipe Tracker" in response.data
 
 
 # ---------------------------------------------------------------------------
