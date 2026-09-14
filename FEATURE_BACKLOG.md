@@ -16,6 +16,14 @@ into active work when they're ready to be tackled.
   (`gcloud run jobs execute burns-website-migrate`) — see "Database
   migrations" in `DEVELOPMENT_PLAN.md`. Worth automating both once deploys
   become frequent enough that forgetting the migrate step is a real risk.
+  - **Known gotcha, hit twice already (2026-09-14):** `burns-website-migrate`
+    is a Cloud Run Job pinned to a specific image digest — it does **not**
+    auto-track the service's latest deploy. Every `gcloud run deploy` needs
+    a matching `gcloud run jobs update burns-website-migrate --image=...`
+    (to the same digest) before the job is trustworthy again; otherwise it
+    silently runs against stale code (in the observed case, this made it a
+    no-op when a real migration was pending). Any future CD automation must
+    include this as an explicit step, not just "deploy and forget."
 - Confirm a GCP billing budget alert exists on the `burns-website-prod`
   project.
 - **CSRF protection (Flask-WTF).** Explicitly deferred when scoping
