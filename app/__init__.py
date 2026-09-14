@@ -26,6 +26,15 @@ def create_app(config_object: str | None = None) -> Flask:
     app.register_blueprint(grocery_list_bp, url_prefix="/grocery-list")
     app.register_blueprint(recipe_tracker_bp, url_prefix="/recipe-tracker")
 
+    if not app.config["DATABASE_URL"]:
+        # No real database configured yet — auto-create tables in the local
+        # SQLite fallback so the app works without a manual init-db step.
+        # This file lives in the container's own filesystem, so on Cloud Run
+        # it's wiped whenever the instance restarts or scales: a throwaway
+        # dev database, not persistent storage. See FEATURE_BACKLOG.md.
+        with app.app_context():
+            db.create_all()
+
     @app.cli.command("init-db")
     def init_db():
         """Create all database tables for every registered blueprint."""

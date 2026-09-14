@@ -10,4 +10,4 @@ COPY . .
 ENV PORT=8080
 EXPOSE 8080
 
-CMD exec gunicorn --bind :$PORT --workers 2 --threads 4 wsgi:app
+CMD exec gunicorn --bind :$PORT --workers 2 --threads 4 --preload wsgi:app
