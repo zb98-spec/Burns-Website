@@ -27,6 +27,12 @@ PROJECTS = [
         "endpoint": "recipe_tracker.index",
         "status": "coming soon",
     },
+    {
+        "name": "Honeymoon",
+        "description": "Plan the honeymoon.",
+        "endpoint": "honeymoon.index",
+        "status": "coming soon",
+    },
 ]
 
 
