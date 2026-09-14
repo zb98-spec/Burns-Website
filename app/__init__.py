@@ -20,11 +20,13 @@ def create_app(config_object: str | None = None) -> Flask:
     from app.blueprints.wine_cellar.routes import wine_cellar_bp
     from app.blueprints.grocery_list.routes import grocery_list_bp
     from app.blueprints.recipe_tracker.routes import recipe_tracker_bp
+    from app.blueprints.honeymoon.routes import honeymoon_bp
 
     app.register_blueprint(core_bp)
     app.register_blueprint(wine_cellar_bp, url_prefix="/wine-cellar")
     app.register_blueprint(grocery_list_bp, url_prefix="/grocery-list")
     app.register_blueprint(recipe_tracker_bp, url_prefix="/recipe-tracker")
+    app.register_blueprint(honeymoon_bp, url_prefix="/honeymoon")
 
     if not app.config["DATABASE_URL"]:
         # No real database configured yet — auto-create tables in the local
