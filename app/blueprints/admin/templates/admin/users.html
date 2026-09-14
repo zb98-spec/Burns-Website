@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Admin · Users{% endblock %}
+
+{% block content %}
+  <h1>Users</h1>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          {% for project in projects %}
+            <th>{{ project.name }}</th>
+          {% endfor %}
+          <th>Admin</th>
+          <th>Password</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+          <tr>
+            <td>{{ user.username }}</td>
+            {% for project in projects %}
+              <td>
+                <form method="post"
+                      action="{{ url_for('admin.toggle_project', user_id=user.id, project_key=project.key) }}"
+                      class="inline-form">
+                  <button type="submit" class="checkbox-button"
+                          title="{{ project.name }}">
+                    {{ '☑' if (user.id, project.key) in granted else '☐' }}
+                  </button>
+                </form>
+              </td>
+            {% endfor %}
+            <td>
+              {% if user.id == current_user.id %}
+                <span title="You can't change your own admin status.">
+                  {{ '☑' if user.is_admin else '☐' }}
+                </span>
+              {% else %}
+                <form method="post"
+                      action="{{ url_for('admin.toggle_admin', user_id=user.id) }}"
+                      class="inline-form">
+                  <button type="submit" class="checkbox-button" title="Admin">
+                    {{ '☑' if user.is_admin else '☐' }}
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post"
+                    action="{{ url_for('admin.set_password', user_id=user.id) }}"
+                    class="inline-form">
+                <input type="password" name="password" placeholder="New password" required>
+                <button type="submit" class="btn">Set</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

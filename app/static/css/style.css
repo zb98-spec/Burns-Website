@@ -18,6 +18,11 @@ body {
 }
 
 .site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   padding: 1.5rem 2rem;
   border-bottom: 1px solid var(--border);
 }
@@ -27,6 +32,17 @@ body {
   font-weight: 600;
   color: var(--fg);
   text-decoration: none;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.site-user {
+  font-size: 0.9rem;
+  color: var(--muted);
 }
 
 main {
@@ -298,6 +314,14 @@ th {
   margin-left: auto;
   display: flex;
   gap: 0.75rem;
+}
+
+.table-wrap input[type="password"] {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  width: 9rem;
 }
 
 .checkbox-button {

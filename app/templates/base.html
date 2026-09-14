@@ -9,6 +9,17 @@
 <body>
   <header class="site-header">
     <a class="site-title" href="{{ url_for('core.index') }}">Burns Dashboard</a>
+    {% if current_user.is_authenticated %}
+      <nav class="site-nav">
+        <span class="site-user">{{ current_user.username }}</span>
+        {% if current_user.is_admin %}
+          <a class="btn" href="{{ url_for('admin.index') }}">Admin</a>
+        {% endif %}
+        <form method="post" action="{{ url_for('auth.logout') }}" class="inline-form">
+          <button type="submit" class="link-button">Log out</button>
+        </form>
+      </nav>
+    {% endif %}
   </header>
   <main>
     {% with messages = get_flashed_messages(with_categories=true) %}

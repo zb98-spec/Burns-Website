@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Create account{% endblock %}
+
+{% block content %}
+  <h1>Create account</h1>
+  <p>New accounts start with no project access — an admin will need to grant it.</p>
+
+  <form method="post" class="stack-form">
+    <label>
+      Username
+      <input type="text" name="username" value="{{ username }}" autofocus required>
+    </label>
+    <label>
+      Password
+      <input type="password" name="password" required>
+    </label>
+    <label>
+      Confirm password
+      <input type="password" name="confirm_password" required>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Create account</button>
+    </div>
+  </form>
+
+  <p><a href="{{ url_for('auth.login') }}">Back to log in</a></p>
+{% endblock %}

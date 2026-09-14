@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Log in{% endblock %}
+
+{% block content %}
+  <h1>Log in</h1>
+
+  <form method="post" class="stack-form">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label>
+      Username
+      <input type="text" name="username" value="{{ username }}" autofocus required>
+    </label>
+    <label>
+      Password
+      <input type="password" name="password" required>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Log in</button>
+    </div>
+  </form>
+
+  <p><a href="{{ url_for('auth.create_account') }}">Create an account</a></p>
+{% endblock %}
