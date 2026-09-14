@@ -70,9 +70,11 @@ told otherwise.
 deploying:
 - Check all routes return 200 (a quick `curl` pass against the live URL)
 - Check Cloud Run logs for errors (`gcloud run services logs read`)
-- If the change added or modified any database models, run
-  `flask --app wsgi init-db` against Neon — a clean deploy with missing
-  tables will 500 on first request, and has happened more than once here
+- If the change added a migration (new/changed models), apply it to Neon:
+  `gcloud run jobs execute burns-website-migrate --region us-central1` —
+  a deploy with a pending migration will 500 on first request to the
+  affected route, and has happened more than once here. See "Database
+  migrations" in `DEVELOPMENT_PLAN.md` for the full workflow.
 
 Don't report the deploy as done until this verification passes.
 

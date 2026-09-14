@@ -143,8 +143,11 @@ that runs automatically.
 
 ## Known gaps / not covered
 
-- No tests for the `flask init-db` CLI command (`app/__init__.py`) — it's a
-  thin wrapper around `db.create_all()`.
+- No automated check that `flask db migrate` produces an empty diff (i.e.
+  that models and the latest migration are in sync) — see "Database
+  migrations" in `DEVELOPMENT_PLAN.md`. Would be a good CI addition once
+  schema changes are more frequent: run `flask db migrate` against a fresh
+  DB and fail if it generates a non-empty script.
 - No template-rendering assertions beyond substring checks on response
   bytes; nothing verifies HTML structure/accessibility.
 - No concurrency/race-condition tests (e.g. two simultaneous `drink` posts

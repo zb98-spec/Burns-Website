@@ -13,10 +13,11 @@ added (or left unbuilt) without touching the others.
 | Styling | Plain hand-written CSS, no framework/build step |
 | Auth | None for MVP — reconsider once a project stores anything sensitive |
 | Structure | One Flask app, one Blueprint per project, one Cloud Run service |
-| Database | One Neon Postgres project; each app gets its own schema (`wine.*`, `grocery.*`, `recipes.*`) when it needs one |
+| Database | One Neon Postgres project; tables are name-prefixed per app (`wine_*`, `grocery_*`, `recipe_*`) in the default schema — see "Database (Neon)" below |
+| Schema changes | Flask-Migrate/Alembic — versioned migration scripts, not ad hoc `create_all()` — see "Database migrations" below |
 | Container | Single Dockerfile, gunicorn as the WSGI server |
 | Hosting | Google Cloud Run (scales to zero, no cluster to manage) |
-| Deploys | Manual (`gcloud run deploy`) for now; GitHub Actions CI/CD added later |
+| Deploys | Manual (`gcloud run deploy`) for now; CI (tests via GitHub Actions) exists, CD (auto-deploy) doesn't yet |
 | Repo | New GitHub repo, created as part of setup |
 | Domain | Default `*.run.app` URL for now; custom domain can be mapped later |
 
@@ -42,8 +43,8 @@ added (or left unbuilt) without touching the others.
 ```
 Burns-Website/
 ├── app/
-│   ├── __init__.py              # create_app() factory, registers all blueprints, `flask init-db` CLI command
-│   ├── extensions.py            # shared `db = SQLAlchemy()` instance
+│   ├── __init__.py              # create_app() factory, registers all blueprints
+│   ├── extensions.py            # shared `db = SQLAlchemy()` and `migrate = Migrate()` instances
 │   ├── templates/
 │   │   ├── base.html            # shared layout (header, flash messages, CSS link)
 │   │   └── placeholder.html     # shared "not built yet" page
@@ -64,6 +65,8 @@ Burns-Website/
 │           ├── routes.py
 │           ├── models.py                      # Recipe, RecipeIngredient
 │           └── templates/recipe_tracker/      # index, form, detail
+├── migrations/                  # Flask-Migrate/Alembic — versioned schema changes, see
+│                                 # "Database migrations" below. Committed, not gitignored.
 ├── config.py                    # env-based config (SECRET_KEY, DATABASE_URL, SQLALCHEMY_*)
 ├── wsgi.py                      # entrypoint for gunicorn / `python wsgi.py`
 ├── tests/                       # pytest suite (currently covers wine_cellar)
@@ -100,9 +103,11 @@ folder. Using the Wine Cellar Tracker as the template to copy:
    and register the blueprint with `template_folder="templates"` — render
    with the `"<project>/<template>.html"` path (see the template naming
    gotcha above).
-4. If the blueprint defines new models, import them inside the `init_db`
-   CLI command in `app/__init__.py` so `flask init-db` creates their tables
-   too (see how `wine_cellar.models` is imported there).
+4. If the blueprint defines new models (or you change an existing one),
+   generate a migration: `flask db migrate -m "add <project> tables"`, then
+   review the generated script under `migrations/versions/` before
+   committing it. See "Database migrations" below for the full workflow —
+   models alone don't create tables anymore; the migration does.
 5. Flip its `status` from `"coming soon"` to `"live"` in
    `app/blueprints/core/routes.py` (`PROJECTS` list) once the index route
    is ready.
@@ -208,9 +213,9 @@ log, no photo upload in this first pass (see rationale below).
   ingredients, cascade-delete of ingredients, search, and cuisine/meal-type
   filtering.
 - **Rollout:** Recipe Tracker's `status` is `"live"` in
-  `app/blueprints/core/routes.py` (`PROJECTS` list), and
-  `recipe_tracker.models` is imported in the `init-db` CLI command in
-  `app/__init__.py` so `flask init-db` creates its tables.
+  `app/blueprints/core/routes.py` (`PROJECTS` list). Its tables
+  (`recipe_recipes`, `recipe_ingredients`) are part of the baseline
+  migration in `migrations/versions/` — see "Database migrations" below.
 
 ## Local development
 
@@ -219,9 +224,15 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt   # includes requirements.txt + pytest
 cp .env.example .env   # fill in SECRET_KEY / DATABASE_URL as needed
-flask --app wsgi init-db   # creates tables in instance/dev.db (SQLite) or Neon if DATABASE_URL is set
-python wsgi.py              # http://localhost:8080
+python wsgi.py          # http://localhost:8080
 ```
+
+No extra setup step needed for local SQLite — tables are auto-created at
+startup (see "Database migrations" below for why this is SQLite-only, not
+how Neon is handled). If you point `DATABASE_URL` at a real Postgres
+database (including Neon) for local testing, run `flask db upgrade` first
+to create its tables — the auto-create-on-startup only applies to the
+local SQLite fallback.
 
 Run tests with `pytest` (uses an in-memory SQLite DB, no setup needed).
 
@@ -235,25 +246,86 @@ Run tests with `pytest` (uses an in-memory SQLite DB, no setup needed).
   don't translate to SQLite, and prefixed table names let the exact same
   SQLAlchemy models run locally (SQLite) and in production (Neon Postgres)
   with zero code changes.
-- `DATABASE_URL` (from `.env` locally, from Cloud Run env vars / Secret
-  Manager in production) is the single connection string shared by all
-  blueprints. If unset, `config.py` falls back to a local SQLite file at
-  `instance/dev.db`.
-- **Tables are not created automatically.** Run `flask --app wsgi init-db`
-  once against a fresh database (local SQLite or a new Neon database) to
-  create all registered models' tables. There's no Alembic/migrations yet
-  (see "Wine Cellar Tracker" note above) — schema changes after the first
-  deploy will need a manual `ALTER TABLE` or a full re-run of `init-db`
-  against a fresh database until migrations are added.
+- `DATABASE_URL` (from `.env` locally, from Cloud Run Secret Manager in
+  production — see "Deploying" below) is the single connection string
+  shared by all blueprints. If unset, `config.py` falls back to a local
+  SQLite file at `instance/dev.db`.
+- The live service's `DATABASE_URL` is stored in Secret Manager as the
+  `database-url` secret and injected via `--set-secrets` — never a plain
+  Cloud Run env var, so the password isn't visible in service config or
+  the console.
+
+## Database migrations
+
+Schema changes (new tables, new/changed columns) go through **Flask-Migrate**
+(Alembic), not `db.create_all()`. This replaced an earlier manual
+`flask init-db` CLI command that only knew how to create missing tables —
+it silently did nothing for column changes to a table that already
+existed, and it was easy to forget to run at all after a deploy (this
+happened twice: once for Wine Cellar/Grocery List, once for Recipe
+Tracker, both showing up as a live 500 until someone remembered to run it).
+
+**The one thing that's still automatic:** when no `DATABASE_URL` is set,
+`app/__init__.py` still auto-runs `db.create_all()` against the local
+SQLite fallback at startup — that's a throwaway dev database with no
+history worth tracking, so migrations don't apply to it. Any real database
+(Neon, or a local Postgres you point `DATABASE_URL` at) is always managed
+through migrations, never auto-created.
+
+**Workflow for a schema change:**
+1. Change (or add) a model in `app/blueprints/<project>/models.py`.
+2. Generate a migration script:
+   ```bash
+   flask --app wsgi db migrate -m "describe the change"
+   ```
+   This connects to whatever `SQLALCHEMY_DATABASE_URI` currently resolves
+   to (local SQLite by default) and diffs it against your models. **Always
+   read the generated script under `migrations/versions/`** — Alembic's
+   autogenerate is good but not perfect (e.g. it won't detect a plain
+   column rename as a rename; it'll see it as a drop + add and lose data
+   unless you edit the script to use `op.alter_column`).
+3. Test it locally: `flask --app wsgi db upgrade`, confirm the app still
+   works, then commit the migration script alongside the model change in
+   the same PR.
+4. After deploying (see "Deploying" below), apply the migration to Neon:
+   ```bash
+   gcloud run jobs execute burns-website-migrate --region us-central1
+   ```
+   This runs `flask db upgrade` inside a one-off Cloud Run Job using the
+   same image and `DATABASE_URL` secret as the live service — safe to run
+   after every deploy whether or not there's anything pending (`db upgrade`
+   is a no-op if already up to date).
+
+**SQLite portability:** `render_as_batch=True` is set on the `Migrate()`
+instance in `app/extensions.py` — SQLite can't do most `ALTER TABLE`
+variants directly, so Alembic rebuilds the table (batch mode) instead.
+This only changes how migrations run against SQLite; Postgres is
+unaffected.
+
+**Bootstrapping note:** the baseline migration
+(`migrations/versions/dbb3bcfbf3fe_baseline_*.py`) captures the schema as
+it existed right before migrations were introduced — Wine Cellar, Grocery
+List, and Recipe Tracker's tables all already existed on Neon by then
+(created ad hoc via the old `init-db` command and, for Recipe Tracker, a
+one-off Cloud Run Job). Rather than re-running `db upgrade` against
+already-existing tables, Neon was **stamped** at the baseline revision
+(`flask db stamp head`) — this records "the database is already at this
+point" without re-running the `CREATE TABLE`s. You won't need to do this
+again; it's a one-time step for adopting migrations on an existing
+database. A genuinely fresh database (e.g. a new Neon project, or CI)
+just runs `flask db upgrade` normally and gets everything from scratch.
 
 ## Docker
 
 ```bash
 docker build -t burns-dashboard .
 docker run -p 8080:8080 --env-file .env burns-dashboard
-# first run only (or after adding new models): create tables inside the container
-docker exec <container_name> flask --app wsgi init-db
+# if .env points DATABASE_URL at a real Postgres database, apply migrations first:
+docker exec <container_name> flask --app wsgi db upgrade
 ```
+
+(With no `DATABASE_URL` set, the local SQLite fallback auto-creates its own
+tables at startup — no `docker exec` step needed in that case.)
 
 ## Deploying to Google Cloud Run (manual, for now)
 
@@ -273,25 +345,36 @@ gcloud run deploy burns-dashboard \
 local Docker install isn't strictly required to deploy — only to test
 locally.
 
-Prefer secrets over `--set-env-vars` for `DATABASE_URL` once this moves
-past personal-project scale: `gcloud secrets create`, then
-`--set-secrets DATABASE_URL=projects/.../secrets/database-url:latest`.
+`DATABASE_URL` is stored in Secret Manager (`database-url` secret) and
+referenced with `--set-secrets DATABASE_URL=database-url:latest` rather
+than passed as a plain `--set-env-vars` value — keeps the Neon password out
+of service configs/console.
 
-**After the first deploy against a fresh Neon database**, run `flask
---app wsgi init-db` once with `DATABASE_URL` pointed at Neon (e.g. from your
-own machine with the Neon connection string in your env) to create the
-tables — Cloud Run doesn't run this automatically.
+**After every deploy that includes a new migration**, apply it to Neon:
+```bash
+gcloud run jobs execute burns-website-migrate --region us-central1
+```
+Cloud Run doesn't run this automatically — see "Database migrations" above
+for the full workflow and why `db upgrade` (not the old `init-db`) is what
+this job runs.
 
-## Future: CI/CD via GitHub Actions
+## Future: CD (auto-deploy) via GitHub Actions
 
-Not set up yet. When ready, the plan is:
+CI already exists — `.github/workflows/ci.yml` runs the pytest suite on
+every push and PR. CD (automatic deploy on merge) doesn't yet; deploys are
+still a manual `gcloud run deploy`, and applying migrations is a separate
+manual `gcloud run jobs execute burns-website-migrate` after that. When
+ready to automate:
 1. Add a `Workload Identity Federation` binding (or a service-account key,
    less preferred) so GitHub Actions can auth to GCP without long-lived keys.
-2. Add `.github/workflows/deploy.yml` that on push to `main`:
+2. Add a deploy workflow that on push to `master`:
    - builds the Docker image
    - pushes to Artifact Registry
    - runs `gcloud run deploy` with the new image
-3. Manual `gcloud run deploy` stays available as a fallback.
+   - runs `gcloud run jobs execute burns-website-migrate` to apply any
+     pending migration
+3. Manual `gcloud run deploy` (and the migrate job) stay available as a
+   fallback.
 
 ## Open items for later (not needed for the current placeholder stage)
 

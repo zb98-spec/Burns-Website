@@ -6,24 +6,16 @@ into active work when they're ready to be tackled.
 
 ## Infrastructure
 
-- **Connect a real Neon Postgres database.** The deployed Cloud Run service
-  currently has no `DATABASE_URL` set, so every project falls back to a
-  local SQLite file created fresh inside the container (see
-  `app/__init__.py`'s auto `db.create_all()`). This works — the app no
-  longer 500s — but data doesn't persist: it's wiped on every container
-  restart/redeploy, and if Cloud Run ever scales beyond one instance,
-  each instance gets its own separate, inconsistent copy of the data.
-  Fine as a throwaway dev database for now; needs to be replaced before
-  the wine cellar or grocery list data actually matters.
-  - When ready: create a Neon project, get the connection string, store it
-    in Google Secret Manager (preferred over a plain Cloud Run env var —
-    keeps the password out of service configs/console), and run
-    `flask --app wsgi init-db` once against it to create tables.
 - Set a real `SECRET_KEY` on the live Cloud Run service (currently falls
   back to the insecure `dev-only-change-me` default). Low urgency until
   there's session data worth protecting.
-- CI/CD via GitHub Actions — deploys are manual (`gcloud run deploy`) for
-  now, per `DEVELOPMENT_PLAN.md`.
+- **CD (auto-deploy) via GitHub Actions.** CI already exists
+  (`.github/workflows/ci.yml` — runs pytest on every push/PR) but deploys
+  are still manual (`gcloud run deploy`), and applying pending migrations
+  after a deploy is a separate manual step
+  (`gcloud run jobs execute burns-website-migrate`) — see "Database
+  migrations" in `DEVELOPMENT_PLAN.md`. Worth automating both once deploys
+  become frequent enough that forgetting the migrate step is a real risk.
 - Confirm a GCP billing budget alert exists on the `burns-website-prod`
   project.
 

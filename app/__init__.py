@@ -1,9 +1,8 @@
 import os
 
-import click
 from flask import Flask
 
-from app.extensions import db
+from app.extensions import db, migrate
 
 
 def create_app(config_object: str | None = None) -> Flask:
@@ -15,6 +14,7 @@ def create_app(config_object: str | None = None) -> Flask:
     os.makedirs(os.path.join(app.root_path, "..", "instance"), exist_ok=True)
 
     db.init_app(app)
+    migrate.init_app(app, db)
 
     from app.blueprints.core.routes import core_bp
     from app.blueprints.wine_cellar.routes import wine_cellar_bp
@@ -30,21 +30,17 @@ def create_app(config_object: str | None = None) -> Flask:
 
     if not app.config["DATABASE_URL"]:
         # No real database configured yet — auto-create tables in the local
-        # SQLite fallback so the app works without a manual init-db step.
-        # This file lives in the container's own filesystem, so on Cloud Run
-        # it's wiped whenever the instance restarts or scales: a throwaway
-        # dev database, not persistent storage. See FEATURE_BACKLOG.md.
+        # SQLite fallback so the app works with zero setup. This file lives
+        # in the container's own filesystem, so on Cloud Run it's wiped
+        # whenever the instance restarts or scales: a throwaway dev
+        # database, not persistent storage. See FEATURE_BACKLOG.md.
+        #
+        # This is separate from migrations (below): a real database
+        # (DATABASE_URL set, e.g. Neon) is always managed via
+        # `flask db upgrade`, never auto-created, so schema changes go
+        # through a reviewable migration script instead of being applied
+        # silently.
         with app.app_context():
             db.create_all()
-
-    @app.cli.command("init-db")
-    def init_db():
-        """Create all database tables for every registered blueprint."""
-        from app.blueprints.wine_cellar import models  # noqa: F401
-        from app.blueprints.grocery_list import models  # noqa: F401
-        from app.blueprints.recipe_tracker import models  # noqa: F401
-
-        db.create_all()
-        click.echo("Database tables created.")
 
     return app
