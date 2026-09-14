@@ -38,8 +38,10 @@ def _log_in(test_client, user):
         # Flask-Login's session key; must be a string. login_user() itself
         # needs a request context, which a fixture doesn't have, so this
         # writes the session directly instead — the documented pattern for
-        # testing Flask-Login-protected views.
-        sess["_user_id"] = str(user.id)
+        # testing Flask-Login-protected views. Must match User.get_id()'s
+        # "<id>:<password_hash fingerprint>" format, since load_user()
+        # rejects anything else as a stale/invalidated session.
+        sess["_user_id"] = user.get_id()
         sess["_fresh"] = True
 
 

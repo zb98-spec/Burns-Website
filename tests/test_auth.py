@@ -1,4 +1,13 @@
+import pytest
+
 from app.blueprints.auth.models import User
+
+PROJECT_ROUTES = [
+    "/wine-cellar/",
+    "/grocery-list/",
+    "/recipe-tracker/",
+    "/honeymoon/",
+]
 
 
 def create_account(client, **overrides):
@@ -121,15 +130,17 @@ def test_open_redirect_is_rejected(anon_client):
         anon_client.post("/logout")
 
 
-def test_user_without_project_access_gets_403(anon_client):
+@pytest.mark.parametrize("route", PROJECT_ROUTES)
+def test_user_without_project_access_gets_403(anon_client, route):
     create_account(anon_client, username="noaccess")
-    response = anon_client.get("/wine-cellar/")
+    response = anon_client.get(route)
     assert response.status_code == 403
 
 
-def test_user_with_project_access_gets_200(client):
+@pytest.mark.parametrize("route", PROJECT_ROUTES)
+def test_user_with_project_access_gets_200(client, route):
     # `client` fixture already has access to every project.
-    response = client.get("/wine-cellar/")
+    response = client.get(route)
     assert response.status_code == 200
 
 

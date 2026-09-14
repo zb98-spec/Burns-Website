@@ -24,7 +24,16 @@ def create_app(config_object: str | None = None) -> Flask:
     def load_user(user_id):
         from app.blueprints.auth.models import User
 
-        return db.session.get(User, int(user_id))
+        # user_id is "<id>:<password_hash fingerprint>" (see User.get_id) —
+        # a stale fingerprint means the password changed since this session
+        # was issued, so treat it as logged out rather than re-authenticate.
+        raw_id, _, fingerprint = user_id.partition(":")
+        if not raw_id.isdigit():
+            return None
+        user = db.session.get(User, int(raw_id))
+        if user is None or user._password_fingerprint() != fingerprint:
+            return None
+        return user
 
     from app.blueprints.core.routes import core_bp
     from app.blueprints.wine_cellar.routes import wine_cellar_bp
@@ -51,7 +60,8 @@ def create_app(config_object: str | None = None) -> Flask:
         if request.endpoint is None or request.endpoint in _EXEMPT_ENDPOINTS:
             return
         if not current_user.is_authenticated:
-            return redirect(url_for("auth.login", next=request.path))
+            next_target = request.full_path if request.query_string else request.path
+            return redirect(url_for("auth.login", next=next_target))
 
     if not app.config["DATABASE_URL"]:
         # No real database configured yet — auto-create tables in the local
@@ -74,10 +84,14 @@ def create_app(config_object: str | None = None) -> Flask:
     def create_admin(username, password):
         """Create an admin user. Run once to bootstrap the first admin."""
         from app.blueprints.auth.models import User
+        from app.blueprints.auth.routes import MIN_PASSWORD_LENGTH
 
         username = username.strip().lower()
         if User.query.filter_by(username=username).first() is not None:
             click.echo(f"User '{username}' already exists.")
+            return
+        if len(password) < MIN_PASSWORD_LENGTH:
+            click.echo(f"Password must be at least {MIN_PASSWORD_LENGTH} characters.")
             return
 
         user = User(username=username, is_admin=True)
