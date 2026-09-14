@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}All Items · Grocery List{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('grocery_list.index') }}">&larr; Back to grocery list</a></p>
+
+  <div class="page-header">
+    <h1>All Items</h1>
+    <div class="page-header-actions">
+      <a class="btn btn--primary" href="{{ url_for('grocery_list.add') }}">Add Item</a>
+    </div>
+  </div>
+
+  {% if groups %}
+    {% for category, items in groups %}
+      <h2 class="category-heading">{{ category }}</h2>
+      <ul class="item-list">
+        {% for item in items %}
+          <li class="item-row">
+            <form method="post" action="{{ url_for('grocery_list.toggle', item_id=item.id) }}" class="inline-form">
+              <input type="hidden" name="next" value="catalog">
+              <button type="submit" class="checkbox-button" title="{{ 'On the list' if item.on_list else 'Not on the list' }}">
+                {{ '☑' if item.on_list else '☐' }}
+              </button>
+            </form>
+            <span class="item-name">{{ item.name }}</span>
+            {% if item.quantity %}<span class="item-quantity">{{ item.quantity }}</span>{% endif %}
+            {% if item.note %}<span class="item-note">{{ item.note }}</span>{% endif %}
+            <span class="row-actions">
+              <a href="{{ url_for('grocery_list.edit', item_id=item.id) }}">Edit</a>
+              <form method="post" action="{{ url_for('grocery_list.delete', item_id=item.id) }}"
+                    onsubmit="return confirm('Delete {{ item.name }}?');" class="inline-form">
+                <input type="hidden" name="next" value="catalog">
+                <button type="submit" class="link-button">Delete</button>
+              </form>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endfor %}
+  {% else %}
+    <p>No items yet. <a href="{{ url_for('grocery_list.add') }}">Add one</a>.</p>
+  {% endif %}
+{% endblock %}

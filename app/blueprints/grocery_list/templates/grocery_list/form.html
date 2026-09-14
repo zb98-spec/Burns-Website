@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} · Grocery List{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('grocery_list.catalog') }}">&larr; Back to all items</a></p>
+  <h1>{{ form_title }}</h1>
+
+  <form method="post" class="stack-form">
+    <label>
+      Name*
+      <input type="text" name="name" value="{{ item.name if item else '' }}" required>
+    </label>
+    <label>
+      Category
+      <select name="category">
+        {% for category in categories %}
+          <option value="{{ category }}" {% if item and item.category == category %}selected{% endif %}>{{ category }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="form-row">
+      <label>
+        Quantity
+        <input type="text" name="quantity" placeholder="e.g. 2 lbs" value="{{ item.quantity if item else '' }}">
+      </label>
+      <label>
+        Note
+        <input type="text" name="note" placeholder="e.g. the good kind" value="{{ item.note if item else '' }}">
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Save</button>
+      <a class="btn" href="{{ url_for('grocery_list.catalog') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

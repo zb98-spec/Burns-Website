@@ -19,7 +19,7 @@ PROJECTS = [
         "name": "Grocery List",
         "description": "A running household grocery list.",
         "endpoint": "grocery_list.index",
-        "status": "coming soon",
+        "status": "live",
     },
     {
         "name": "Recipe Tracker",
