@@ -15,6 +15,10 @@ class Config:
         BASE_DIR, "instance", "dev.db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Neon can silently close idle connections server-side; pre-ping tests a
+    # pooled connection before use and transparently reconnects instead of
+    # surfacing "SSL connection has been closed unexpectedly" as a 500.
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
 
     # Session cookie hardening. CSRF tokens (Flask-WTF) are deferred (see
     # FEATURE_BACKLOG.md), so SameSite=Lax is doing real work here: it stops
