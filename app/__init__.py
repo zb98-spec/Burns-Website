@@ -40,6 +40,7 @@ def create_app(config_object: str | None = None) -> Flask:
     from app.blueprints.grocery_list.routes import grocery_list_bp
     from app.blueprints.recipe_tracker.routes import recipe_tracker_bp
     from app.blueprints.honeymoon.routes import honeymoon_bp
+    from app.blueprints.investing.routes import investing_bp
     from app.blueprints.auth.routes import auth_bp
     from app.blueprints.admin.routes import admin_bp
 
@@ -48,6 +49,7 @@ def create_app(config_object: str | None = None) -> Flask:
     app.register_blueprint(grocery_list_bp, url_prefix="/grocery-list")
     app.register_blueprint(recipe_tracker_bp, url_prefix="/recipe-tracker")
     app.register_blueprint(honeymoon_bp, url_prefix="/honeymoon")
+    app.register_blueprint(investing_bp, url_prefix="/investing")
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
 
