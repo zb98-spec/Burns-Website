@@ -1,15 +1,10 @@
 # Testing Notes
 
-Status of test coverage as of 2026-09-14, covering everything built so far:
-Wine Cellar Tracker, Grocery List, and Recipe Tracker. Written as a reference
-for picking this back up later — what's covered, what isn't, and how to run
-it.
-
-**Note:** Recipe Tracker's code (`app/blueprints/recipe_tracker/models.py`,
-its templates, and `tests/test_recipe_tracker.py`) is present in the working
-tree but **not yet committed**. Everything else described here — Wine
-Cellar, Grocery List, the CI workflow, and the production deploy — is
-committed and merged to `master`.
+Status of test coverage as of 2026-09-21, covering everything built so far:
+Wine Cellar Tracker, Grocery List, Recipe Tracker, and the auth/permissions
+system (accounts, login, per-project access, admin panel). Written as a
+reference for picking this back up later — what's covered, what isn't, and
+how to run it.
 
 ## Setup
 
@@ -27,11 +22,14 @@ never touch the Neon/Postgres database configured for dev or prod.
 
 ## Scope
 
-**Wine Cellar Tracker**, **Grocery List**, and **Recipe Tracker** all have
-real behavior and full test coverage. `core` is a static dashboard, covered
-indirectly by the cross-blueprint navigation test in
-`test_wine_cellar_integration.py`. `honeymoon` is still a placeholder page
-with no logic — no dedicated tests needed until it's built out.
+**Wine Cellar Tracker**, **Grocery List**, **Recipe Tracker**, and the
+**auth/admin system** all have real behavior and full test coverage. `core`
+is a static dashboard, covered indirectly by the cross-blueprint navigation
+test in `test_wine_cellar_integration.py`. `honeymoon` and `investing` are
+still placeholder pages with no logic — no dedicated tests for their
+placeholder content, but their access-control gate (403 without a grant,
+200 with one) is covered by the parametrized tests in `test_auth.py` along
+with every other project's gate.
 
 ## Test files
 
@@ -51,7 +49,7 @@ with no logic — no dedicated tests needed until it's built out.
 - **`tests/test_grocery_list.py`** — pre-existing (added alongside the
   Grocery List build-out), covers adding/editing/deleting items, the
   active-list vs. catalog toggle, category grouping, and bulk clear.
-- **`tests/test_recipe_tracker.py`** (new, uncommitted) — added alongside
+- **`tests/test_recipe_tracker.py`** — added alongside
   the Recipe Tracker build-out (`Recipe` + `RecipeIngredient` models, fixed
   `CUISINES`/`MEAL_TYPES` lists — see `app/blueprints/recipe_tracker/models.py`).
   Route-level tests, all against the real in-memory database:
@@ -94,6 +92,42 @@ with no logic — no dedicated tests needed until it's built out.
   - Search: case-insensitivity across name/producer/varietal/region, and the
     "no matches" message.
   - Tasting history ordering (most recent first).
+- **`tests/test_auth.py`** — accounts, login, and the site-wide + per-project
+  access gates:
+  - Signup: succeeds with zero project access, rejects a duplicate
+    username, rejects a too-short password, rejects mismatched
+    password/confirm.
+  - Login: succeeds with correct credentials, fails (generic error, no
+    username enumeration) on wrong password or unknown username.
+  - `logout` requires POST (405 on GET); an anonymous visitor hitting any
+    page gets redirected to `/login`.
+  - The `next` redirect round-trips correctly after login, and a crafted
+    open-redirect `next` value (`https://evil.com`, `//evil.com`) is
+    rejected and falls back to the dashboard.
+  - **Parametrized across all five project routes** (wine-cellar,
+    grocery-list, recipe-tracker, honeymoon, investing) — added
+    specifically to close a gap where only wine-cellar's gate was tested:
+    `test_user_without_project_access_gets_403` and
+    `test_user_with_project_access_gets_200`.
+  - Dashboard tile filtering: hidden entirely without access, all shown
+    with full access.
+  - The `flask create-admin` CLI: creates an admin, rejects a duplicate
+    username.
+- **`tests/test_admin.py`** — the `/admin` panel, all gated by `is_admin`:
+  - Rejected for a non-admin (403) and for an anonymous visitor (redirected
+    to login by the global gate before the admin check even runs).
+  - Lists all users.
+  - Granting and revoking per-project access via the toggle endpoint,
+    confirmed both in the database and by the target route flipping
+    between 403/200.
+  - Rejects toggling a project key that doesn't exist (404).
+  - Promoting/demoting another user's admin status.
+  - An admin can't demote themselves (self-demote guard) — and separately,
+    `toggle_admin`'s guard is written against the actual "at least one
+    admin must exist" invariant (a count check), not just self-demotion,
+    so it also covers any future path that could zero out admins.
+  - Admin-initiated password reset: works (the user can log in with the
+    new password), and rejects a too-short one.
 
 ## Running a subset
 
@@ -102,7 +136,7 @@ python -m pytest tests/test_wine_cellar_unit.py -v          # unit only
 python -m pytest tests/test_wine_cellar_integration.py -v   # integration only
 ```
 
-As of this writing, the full suite is **70 tests**, all passing (`python -m
+As of this writing, the full suite is **104 tests**, all passing (`python -m
 pytest tests/ -v`).
 
 ## End-to-end verification (production, manual)
@@ -141,6 +175,14 @@ This isn't scripted or repeatable as-is — it was ad hoc verification after a
 specific deploy. See "Known gaps" below for turning this into something
 that runs automatically.
 
+**More recent manual verification (2026-09-21, after the auth/permissions
+and Investing-tile deploys):** signup → auto-login → logout → manual login
+walked through in a real browser against the live site, confirming the
+whole auth flow works end-to-end in production, not just in pytest. Also
+confirmed live: the new `investing` route 302s to login when logged out
+(access gate active), and after the `pool_pre_ping` fix, no further
+`SSL connection has been closed unexpectedly` errors in the logs.
+
 ## Known gaps / not covered
 
 - No automated check that `flask db migrate` produces an empty diff (i.e.
@@ -150,9 +192,14 @@ that runs automatically.
   DB and fail if it generates a non-empty script.
 - No template-rendering assertions beyond substring checks on response
   bytes; nothing verifies HTML structure/accessibility.
-- No concurrency/race-condition tests (e.g. two simultaneous `drink` posts
-  against the same bottle) — the app has no auth or multi-user concept yet,
-  so this hasn't been a priority.
+- No concurrency/race-condition tests for the feature routes (e.g. two
+  simultaneous `drink` posts against the same bottle). Two such races
+  *were* found and fixed on the auth/admin side (concurrent signup,
+  concurrent access-toggle — both now catch `IntegrityError` gracefully,
+  see `app/blueprints/auth/routes.py` and `app/blueprints/admin/routes.py`)
+  but neither has an automated test proving the fix, since reliably
+  triggering a DB-level race from a single-threaded test client isn't
+  straightforward — verified manually instead at the time.
 - `tests/test_recipe_tracker.py` isn't split into unit/integration files the
   way Wine Cellar is — it's all route-level tests, same gap as Grocery List
   below. No unit coverage yet for the form-parsing helpers in
