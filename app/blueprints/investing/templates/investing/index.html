@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Investing API Test Console{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('core.index') }}">&larr; Back to dashboard</a></p>
+
+  <div class="page-header">
+    <h1>Investing API Test Console</h1>
+  </div>
+  <p class="api-console-intro">
+    Exercises the <code>Investing-API</code> service directly — each call is
+    made server-to-server, so its API key never reaches this page. POST
+    actions have real side effects on whatever database that service is
+    pointed at.
+  </p>
+
+  {% for action in actions %}
+    <div class="action-card">
+      <div class="action-card-header">
+        <h2>{{ action.label }}</h2>
+        <span class="method-tag method-tag--{{ action.method|lower }}">{{ action.method }} {{ action.path }}</span>
+      </div>
+
+      <form method="post" action="{{ url_for('investing.run', action_id=action.id) }}" class="stack-form">
+        {% if action.fields %}
+          <div class="form-row">
+            {% for f in action.fields %}
+              <label>
+                {{ f.label }}{% if f.required %} *{% endif %}
+                {% set current_value = form_values.get(f.name, "") if (active_action == action.id and form_values) else "" %}
+                {% if f.type == "select" %}
+                  <select name="{{ f.name }}" {% if f.required %}required{% endif %}>
+                    <option value="">Select...</option>
+                    {% for opt in f.options %}
+                      <option value="{{ opt }}" {% if current_value == opt %}selected{% endif %}>{{ opt }}</option>
+                    {% endfor %}
+                  </select>
+                {% elif f.type == "number" %}
+                  <input type="number" step="any" name="{{ f.name }}" value="{{ current_value }}" {% if f.required %}required{% endif %}>
+                {% elif f.type == "date" %}
+                  <input type="date" name="{{ f.name }}" value="{{ current_value }}" {% if f.required %}required{% endif %}>
+                {% else %}
+                  <input type="text" name="{{ f.name }}" value="{{ current_value }}" {% if f.required %}required{% endif %}>
+                {% endif %}
+              </label>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="form-actions">
+          <button type="submit" class="btn btn--primary">Run</button>
+        </div>
+      </form>
+
+      {% if active_action == action.id and result %}
+        <div class="result-panel {% if result.ok %}result-panel--ok{% else %}result-panel--error{% endif %}">
+          {% if result.status_code %}
+            <span class="badge {% if result.ok %}badge--ready{% else %}badge--past{% endif %}">{{ result.status_code }}</span>
+          {% else %}
+            <span class="badge badge--past">no response</span>
+          {% endif %}
+          {% if result.error %}
+            <p>{{ result.error }}</p>
+          {% else %}
+            <pre class="json-output">{{ result.body_json }}</pre>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% endblock %}

@@ -35,3 +35,8 @@ class Config:
     SESSION_COOKIE_SECURE = os.environ.get(
         "SESSION_COOKIE_SECURE", "true" if DATABASE_URL else "false"
     ).lower() == "true"
+
+    # Investing API (separate service — see INVESTMENT_ENGINE_HANDOFF.md).
+    # Server-to-server only: the API key never reaches the browser.
+    INVESTING_API_URL = os.environ.get("INVESTING_API_URL", "http://localhost:8000")
+    INVESTING_API_KEY = os.environ.get("INVESTING_API_KEY")

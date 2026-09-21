@@ -1,0 +1,19 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      SECRET_KEY: dev-only-change-me
+      PORT: 8080
+      # Reaches the Investing-API container's published port via OrbStack's
+      # host bridge, without joining that repo's compose network — the two
+      # services stay fully independent (see INVESTMENT_ENGINE_HANDOFF.md).
+      INVESTING_API_URL: http://host.docker.internal:8000
+      INVESTING_API_KEY: local-dev-key
+    ports:
+      - "5050:8080"
+    volumes:
+      - burns_website_instance:/app/instance
+
+volumes:
+  burns_website_instance:

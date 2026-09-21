@@ -379,6 +379,85 @@ th {
   resize: vertical;
 }
 
+/* Investing API test console */
+
+.api-console-intro {
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-width: 720px;
+  margin-top: -0.5rem;
+}
+
+.action-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.action-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.action-card-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.method-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.5rem;
+}
+
+.action-card .stack-form,
+.action-card .form-row {
+  max-width: none;
+}
+
+.action-card select {
+  font-size: 0.95rem;
+  color: var(--fg);
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.result-panel {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.result-panel--ok {
+  background: #f4faf6;
+}
+
+.result-panel--error {
+  background: #fdf5f5;
+}
+
+.json-output {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
 /* Recipe tracker */
 
 .ingredient-rows {
