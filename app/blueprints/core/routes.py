@@ -40,6 +40,13 @@ PROJECTS = [
         "endpoint": "honeymoon.index",
         "status": "coming soon",
     },
+    {
+        "key": "investing",
+        "name": "Investing",
+        "description": "Direct indexing, DCA, and tax-loss harvesting.",
+        "endpoint": "investing.index",
+        "status": "coming soon",
+    },
 ]
 
 
