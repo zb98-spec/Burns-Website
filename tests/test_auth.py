@@ -7,6 +7,7 @@ PROJECT_ROUTES = [
     "/grocery-list/",
     "/recipe-tracker/",
     "/honeymoon/",
+    "/investing/",
 ]
 
 

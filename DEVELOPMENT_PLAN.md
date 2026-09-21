@@ -23,8 +23,8 @@ added (or left unbuilt) without touching the others.
 
 ## Current status
 
-- Landing page with 4 tiles (Wine Cellar Tracker, Grocery List, Recipe
-  Tracker, Honeymoon)
+- Landing page with 5 tiles (Wine Cellar Tracker, Grocery List, Recipe
+  Tracker, Honeymoon, Investing)
 - **Wine Cellar Tracker is built out**: add/edit/delete bottles, a searchable
   table view, drink-window badges, a "Drink" action that decrements quantity
   and logs to a separate Tasting History page. See its own section below.
@@ -34,6 +34,13 @@ added (or left unbuilt) without touching the others.
   ingredients (quantity/unit/name rows), fixed cuisine/meal-type categories,
   search across title and ingredients, and filter by cuisine/meal type. See
   its own section below.
+- **Honeymoon** is a placeholder tile — no functionality yet.
+- **Investing** is a placeholder tile — no functionality yet, and won't
+  become a blueprint here. Per `INVESTMENT_ENGINE_HANDOFF.md`, its actual
+  functionality (direct indexing, DCA, tax-loss harvesting) is planned as
+  a separate, independently-developed API/service integrating over HTTP,
+  not a blueprint in this repo. This tile is just the dashboard entry
+  point for it.
 - Flask-SQLAlchemy is wired up, defaulting to a local SQLite file
   (`instance/dev.db`) until `DATABASE_URL` (Neon) is set
 - **The whole site requires login.** Accounts are local (username +
@@ -68,6 +75,10 @@ Burns-Website/
 │       │   ├── routes.py
 │       │   ├── models.py                      # Recipe, RecipeIngredient
 │       │   └── templates/recipe_tracker/      # index, form, detail
+│       ├── honeymoon/                         # placeholder — no functionality yet
+│       │   └── routes.py
+│       ├── investing/                         # placeholder — see "Current status" above; real
+│       │   └── routes.py                      # functionality planned as a separate service, not here
 │       ├── auth/                              # login, logout, create-account — see "Authentication" below
 │       │   ├── routes.py
 │       │   ├── models.py                      # User, UserProjectAccess
@@ -80,7 +91,8 @@ Burns-Website/
 │                                 # "Database migrations" below. Committed, not gitignored.
 ├── config.py                    # env-based config (SECRET_KEY, DATABASE_URL, SQLALCHEMY_*)
 ├── wsgi.py                      # entrypoint for gunicorn / `python wsgi.py`
-├── tests/                       # pytest suite (currently covers wine_cellar)
+├── tests/                       # pytest suite — 104 tests: wine_cellar, grocery_list,
+│                                 # recipe_tracker, auth, admin (see TESTING.md)
 ├── requirements.txt
 ├── requirements-dev.txt         # requirements.txt + pytest
 ├── Dockerfile
@@ -341,6 +353,12 @@ Run tests with `pytest` (uses an in-memory SQLite DB, no setup needed).
   `database-url` secret and injected via `--set-secrets` — never a plain
   Cloud Run env var, so the password isn't visible in service config or
   the console.
+- `SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}` (`config.py`) —
+  Neon can silently close idle connections server-side; pre-ping tests a
+  pooled connection with a cheap query before handing it out and
+  transparently reconnects if it's dead, instead of the request 500ing
+  with `psycopg2.OperationalError: SSL connection has been closed
+  unexpectedly` (observed in production before this was added).
 
 ## Database migrations
 
