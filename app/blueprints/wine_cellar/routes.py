@@ -1,12 +1,12 @@
 from datetime import date, datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import func, or_
 
 from app.blueprints.auth.access import require_project_access
 from app.extensions import db
 
-from .models import Bottle, TastingHistory
+from .models import Bottle, TastingHistory, TastingScore
 
 wine_cellar_bp = Blueprint(
     "wine_cellar",
@@ -35,6 +35,41 @@ def _parse_date(value):
     if not value:
         return None
     return datetime.strptime(value, "%Y-%m-%d").date()
+
+
+def _scores_from_form(form, errors):
+    names = form.getlist("taster_name")
+    raw_scores = form.getlist("score")
+
+    scores = []
+    for name, raw_score in zip(names, raw_scores):
+        name = (name or "").strip()
+        raw_score = (raw_score or "").strip()
+        if not name and not raw_score:
+            continue
+        if not name:
+            errors.append("Each score needs a taster name.")
+            continue
+        try:
+            score = int(raw_score)
+            if not (0 <= score <= 100):
+                raise ValueError
+        except ValueError:
+            errors.append(f"{name}'s score must be a whole number between 0 and 100.")
+            continue
+        scores.append({"taster_name": name, "score": score})
+
+    return scores
+
+
+def _image_from_files(files, errors):
+    image = files.get("image")
+    if image is None or not image.filename:
+        return None, None
+    if not (image.mimetype or "").startswith("image/"):
+        errors.append("Uploaded file must be an image.")
+        return None, None
+    return image.read(), image.mimetype
 
 
 def _bottle_from_form(form, errors):
@@ -181,16 +216,7 @@ def drink(bottle_id):
         return redirect(url_for("wine_cellar.index"))
 
     if request.method == "POST":
-        rating_raw = (request.form.get("rating") or "").strip()
-        rating = None
         errors = []
-        if rating_raw:
-            try:
-                rating = int(rating_raw)
-                if not (0 <= rating <= 100):
-                    raise ValueError
-            except ValueError:
-                errors.append("Rating must be a whole number between 0 and 100.")
 
         consumed_date_raw = (request.form.get("consumed_date") or "").strip()
         try:
@@ -198,6 +224,9 @@ def drink(bottle_id):
         except ValueError:
             errors.append("Consumed date must be a valid date.")
             consumed_date = date.today()
+
+        scores = _scores_from_form(request.form, errors)
+        image_bytes, image_mimetype = _image_from_files(request.files, errors)
 
         if errors:
             for error in errors:
@@ -211,8 +240,10 @@ def drink(bottle_id):
             producer=bottle.producer,
             vintage=bottle.vintage,
             consumed_date=consumed_date,
-            rating=rating,
             notes=(request.form.get("notes") or "").strip() or None,
+            image=image_bytes,
+            image_mimetype=image_mimetype,
+            scores=[TastingScore(**s) for s in scores],
         )
         db.session.add(history)
         db.session.commit()
@@ -220,6 +251,67 @@ def drink(bottle_id):
         return redirect(url_for("wine_cellar.index"))
 
     return render_template("wine_cellar/drink.html", bottle=bottle, today=date.today().isoformat())
+
+
+@wine_cellar_bp.route("/tastings/add", methods=["GET", "POST"])
+def add_tasting():
+    if request.method == "POST":
+        errors = []
+
+        wine_name = (request.form.get("wine_name") or "").strip()
+        if not wine_name:
+            errors.append("Wine name is required.")
+
+        vintage_raw = (request.form.get("vintage") or "").strip()
+        vintage = None
+        if vintage_raw:
+            try:
+                vintage = int(vintage_raw)
+            except ValueError:
+                errors.append("Vintage must be a whole number.")
+
+        consumed_date_raw = (request.form.get("consumed_date") or "").strip()
+        try:
+            consumed_date = _parse_date(consumed_date_raw) or date.today()
+        except ValueError:
+            errors.append("Consumed date must be a valid date.")
+            consumed_date = date.today()
+
+        scores = _scores_from_form(request.form, errors)
+        image_bytes, image_mimetype = _image_from_files(request.files, errors)
+
+        if errors:
+            for error in errors:
+                flash(error, "error")
+            return render_template(
+                "wine_cellar/tasting_add.html", today=date.today().isoformat(), form_data=request.form
+            )
+
+        history = TastingHistory(
+            bottle_id=None,
+            wine_name=wine_name,
+            producer=(request.form.get("producer") or "").strip() or None,
+            vintage=vintage,
+            consumed_date=consumed_date,
+            notes=(request.form.get("notes") or "").strip() or None,
+            image=image_bytes,
+            image_mimetype=image_mimetype,
+            scores=[TastingScore(**s) for s in scores],
+        )
+        db.session.add(history)
+        db.session.commit()
+        flash(f"Logged a tasting of {wine_name}.", "success")
+        return redirect(url_for("wine_cellar.history"))
+
+    return render_template("wine_cellar/tasting_add.html", today=date.today().isoformat(), form_data=None)
+
+
+@wine_cellar_bp.route("/tastings/<int:tasting_id>/image")
+def tasting_image(tasting_id):
+    entry = db.get_or_404(TastingHistory, tasting_id)
+    if not entry.image:
+        abort(404)
+    return Response(entry.image, mimetype=entry.image_mimetype or "application/octet-stream")
 
 
 @wine_cellar_bp.route("/history")

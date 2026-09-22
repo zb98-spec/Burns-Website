@@ -7,19 +7,17 @@
   <h1>Log a tasting: {{ bottle.name }}</h1>
   <p>This will reduce the quantity from {{ bottle.quantity }} to {{ bottle.quantity - 1 }} and add an entry to your tasting history.</p>
 
-  <form method="post" class="stack-form">
+  <form method="post" enctype="multipart/form-data" class="stack-form">
     <label>
       Date consumed
       <input type="date" name="consumed_date" value="{{ today }}">
     </label>
     <label>
-      Rating (0-100)
-      <input type="number" min="0" max="100" name="rating">
-    </label>
-    <label>
       Notes
       <textarea name="notes" rows="4"></textarea>
     </label>
+
+    {% include "wine_cellar/_tasting_fields.html" %}
 
     <div class="form-actions">
       <button type="submit" class="btn btn--primary">Log Tasting</button>

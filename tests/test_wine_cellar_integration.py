@@ -81,7 +81,7 @@ def test_full_bottle_lifecycle(client, app):
     # Drink once: quantity drops, still visible in the list.
     client.post(
         f"/wine-cellar/{bottle_id}/drink",
-        data={"consumed_date": "2026-01-01", "rating": "90"},
+        data={"consumed_date": "2026-01-01"},
         follow_redirects=True,
     )
     list_response = client.get("/wine-cellar/")
@@ -90,7 +90,7 @@ def test_full_bottle_lifecycle(client, app):
     # Drink again: quantity hits zero, bottle drops out of the active list.
     client.post(
         f"/wine-cellar/{bottle_id}/drink",
-        data={"consumed_date": "2026-01-02", "rating": "88"},
+        data={"consumed_date": "2026-01-02"},
         follow_redirects=True,
     )
     empty_list_response = client.get("/wine-cellar/")
@@ -169,24 +169,7 @@ def test_drink_blocked_when_quantity_is_zero(client, app):
         assert TastingHistory.query.count() == 0
 
 
-def test_drink_with_invalid_rating_shows_error_and_does_not_decrement(client, app):
-    add_bottle(client, quantity="1")
-    with app.app_context():
-        bottle_id = Bottle.query.one().id
-
-    response = client.post(
-        f"/wine-cellar/{bottle_id}/drink",
-        data={"consumed_date": "2026-01-01", "rating": "150"},
-        follow_redirects=True,
-    )
-    assert b"Rating must be a whole number between 0 and 100." in response.data
-    with app.app_context():
-        bottle = db.session.get(Bottle, bottle_id)
-        assert bottle.quantity == 1
-        assert TastingHistory.query.count() == 0
-
-
-def test_drink_without_rating_or_notes_logs_history_with_nulls(client, app):
+def test_drink_without_notes_logs_history_with_nulls(client, app):
     add_bottle(client, quantity="1")
     with app.app_context():
         bottle_id = Bottle.query.one().id
@@ -198,8 +181,8 @@ def test_drink_without_rating_or_notes_logs_history_with_nulls(client, app):
     )
     with app.app_context():
         history = TastingHistory.query.one()
-        assert history.rating is None
         assert history.notes is None
+        assert history.average_score is None
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +229,74 @@ def test_search_with_no_matches_shows_message(client):
     response = client.get("/wine-cellar/?q=nonexistent-wine")
     assert b"No bottles matching" in response.data
     assert b"2019 Barolo" not in response.data
+
+
+def test_wine_cellar_pages_have_no_dashboard_back_link(client, app):
+    """The dashboard link now lives only in the top bar (base.html); the old
+    per-page 'Back to dashboard' paragraph was removed from the wine cellar
+    pages specifically."""
+    add_bottle(client, quantity="1")
+    with app.app_context():
+        bottle_id = Bottle.query.one().id
+    for path in (
+        "/wine-cellar/",
+        "/wine-cellar/history",
+        f"/wine-cellar/{bottle_id}/edit",
+        f"/wine-cellar/{bottle_id}/drink",
+    ):
+        response = client.get(path)
+        assert b"Back to dashboard" not in response.data
+
+
+# ---------------------------------------------------------------------------
+# Two pages: Wine Cellar and Wine Tasting cross-link, and a standalone
+# tasting shows up on the tasting page without ever touching the cellar.
+# ---------------------------------------------------------------------------
+
+def test_wine_cellar_and_tasting_pages_cross_link(client):
+    cellar_response = client.get("/wine-cellar/")
+    assert b'href="/wine-cellar/history"' in cellar_response.data
+
+    tasting_response = client.get("/wine-cellar/history")
+    assert b'href="/wine-cellar/"' in tasting_response.data
+    assert b'href="/wine-cellar/tastings/add"' in tasting_response.data
+
+
+def test_standalone_tasting_appears_on_tasting_page_not_cellar(client, app):
+    client.post(
+        "/wine-cellar/tastings/add",
+        data={"wine_name": "2015 Pinot Noir", "consumed_date": "2026-01-01"},
+        follow_redirects=True,
+    )
+    cellar_response = client.get("/wine-cellar/")
+    assert b"2015 Pinot Noir" not in cellar_response.data
+
+    tasting_response = client.get("/wine-cellar/history")
+    assert b"2015 Pinot Noir" in tasting_response.data
+
+
+# ---------------------------------------------------------------------------
+# Tasting card: average-score badge and per-taster hover breakdown
+# ---------------------------------------------------------------------------
+
+def test_tasting_card_shows_average_badge_and_per_taster_breakdown(client, app):
+    add_bottle(client, quantity="1")
+    with app.app_context():
+        bottle_id = Bottle.query.one().id
+
+    client.post(
+        f"/wine-cellar/{bottle_id}/drink",
+        data={
+            "consumed_date": "2026-01-01",
+            "taster_name": ["Zach", "Sam"],
+            "score": ["90", "80"],
+        },
+    )
+
+    response = client.get("/wine-cellar/history")
+    assert b'badge badge--score">85</span>' in response.data
+    assert b"Zach: 90" in response.data
+    assert b"Sam: 80" in response.data
 
 
 def test_history_orders_entries_most_recent_first(client, app):

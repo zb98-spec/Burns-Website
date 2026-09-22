@@ -1,0 +1,46 @@
+<div>
+  <label>Scores</label>
+  <div id="score-rows" class="ingredient-rows">
+    <div class="ingredient-row score-row">
+      <input type="text" name="taster_name" placeholder="Taster name">
+      <input type="number" min="0" max="100" name="score" placeholder="Score">
+      <button type="button" class="btn remove-score-row">&times;</button>
+    </div>
+  </div>
+  <button type="button" id="add-score-row" class="btn">+ Add another score</button>
+</div>
+
+<label>
+  Photo
+  <input type="file" name="image" accept="image/*" capture="environment">
+</label>
+
+<template id="score-row-template">
+  <div class="ingredient-row score-row">
+    <input type="text" name="taster_name" placeholder="Taster name">
+    <input type="number" min="0" max="100" name="score" placeholder="Score">
+    <button type="button" class="btn remove-score-row">&times;</button>
+  </div>
+</template>
+
+<script>
+  (function () {
+    var rows = document.getElementById("score-rows");
+    var template = document.getElementById("score-row-template");
+
+    document.getElementById("add-score-row").addEventListener("click", function () {
+      rows.appendChild(template.content.cloneNode(true));
+    });
+
+    rows.addEventListener("click", function (event) {
+      if (event.target.classList.contains("remove-score-row")) {
+        var row = event.target.closest(".score-row");
+        if (rows.children.length > 1) {
+          row.remove();
+        } else {
+          row.querySelectorAll("input").forEach(function (input) { input.value = ""; });
+        }
+      }
+    });
+  })();
+</script>
