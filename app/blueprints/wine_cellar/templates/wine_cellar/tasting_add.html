@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Add a Tasting · Wine Tasting{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('wine_cellar.history') }}">&larr; Back to wine tasting</a></p>
+  <h1>Add a Tasting</h1>
+  <p>Log a tasting for a wine that isn't (or wasn't) in your cellar.</p>
+
+  <form method="post" enctype="multipart/form-data" class="stack-form">
+    <label>
+      Wine name*
+      <input type="text" name="wine_name" value="{{ form_data.get('wine_name') if form_data else '' }}" required>
+    </label>
+    <div class="form-row">
+      <label>
+        Producer
+        <input type="text" name="producer" value="{{ form_data.get('producer') if form_data else '' }}">
+      </label>
+      <label>
+        Vintage
+        <input type="number" name="vintage" value="{{ form_data.get('vintage') if form_data else '' }}">
+      </label>
+    </div>
+    <label>
+      Date consumed
+      <input type="date" name="consumed_date" value="{{ form_data.get('consumed_date') if form_data else today }}">
+    </label>
+    <label>
+      Notes
+      <textarea name="notes" rows="4">{{ form_data.get('notes') if form_data else '' }}</textarea>
+    </label>
+
+    {% include "wine_cellar/_tasting_fields.html" %}
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Log Tasting</button>
+      <a class="btn" href="{{ url_for('wine_cellar.history') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

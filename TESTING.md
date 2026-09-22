@@ -1,6 +1,6 @@
 # Testing Notes
 
-Status of test coverage as of 2026-09-21, covering everything built so far:
+Status of test coverage as of 2026-09-22, covering everything built so far:
 Wine Cellar Tracker, Grocery List, Recipe Tracker, and the auth/permissions
 system (accounts, login, per-project access, admin panel). Written as a
 reference for picking this back up later — what's covered, what isn't, and
@@ -33,9 +33,19 @@ with every other project's gate.
 
 ## Test files
 
-- **`tests/test_wine_cellar.py`** — pre-existing, one test per route, kept
-  as-is.
-- **`tests/test_wine_cellar_unit.py`** (new) — pure logic, no HTTP, no
+- **`tests/test_wine_cellar.py`** — one test per route, plus (added with the
+  scores/photos/standalone-tasting rebuild):
+  - Standalone tastings: `/wine-cellar/tastings/add` creates a
+    `TastingHistory` with `bottle_id=None`, requires a wine name, and never
+    touches an existing bottle's `quantity`.
+  - Scores: multiple `taster_name`/`score` rows compute the right
+    `average_score`; an out-of-range score is rejected and nothing is
+    saved.
+  - Photos: an uploaded image round-trips byte-for-byte through
+    `/wine-cellar/tastings/<id>/image` with the correct `Content-Type`; a
+    non-image upload is rejected; the image route 404s when there's no
+    photo or an unknown tasting id.
+- **`tests/test_wine_cellar_unit.py`** — pure logic, no HTTP, no
   database session:
   - `Bottle.drink_status()` — the cellar/ready/past/None classification
     based on the current year vs. the drink window, including both boundary
@@ -46,6 +56,14 @@ with every other project's gate.
     non-numeric quantity, non-numeric vintage, inverted drink window,
     non-numeric price, invalid date), and that blank optional fields become
     `None` while whitespace gets stripped.
+  - `TastingHistory.average_score` — `None` with no scores.
+  - `_scores_from_form` — multiple rows, blank rows skipped, a score with
+    no name rejected, out-of-range/non-numeric scores rejected (using
+    `werkzeug.datastructures.MultiDict` to exercise the real
+    `form.getlist(...)` repeated-field behavior rather than a plain dict).
+  - `_image_from_files` — no file, empty filename, a valid image mimetype,
+    and a rejected non-image mimetype, against a minimal fake file object
+    (`.filename`/`.mimetype`/`.read()`) rather than a real upload.
 - **`tests/test_grocery_list.py`** — pre-existing (added alongside the
   Grocery List build-out), covers adding/editing/deleting items, the
   active-list vs. catalog toggle, category grouping, and bulk clear.
@@ -85,13 +103,21 @@ with every other project's gate.
   - Validation round-trips: invalid `add`/`drink` submissions re-render the
     form with the user's entered values intact, and don't write to the
     database.
-  - Drink edge cases: blocked at zero quantity, rejected out-of-range
-    rating leaves quantity/history untouched, omitting rating/notes stores
-    `NULL`s.
+  - Drink edge cases: blocked at zero quantity, omitting notes/scores
+    stores `NULL`s (`average_score` is `None` with no scores logged).
   - 404s for edit/drink/delete on an unknown bottle id.
   - Search: case-insensitivity across name/producer/varietal/region, and the
     "no matches" message.
   - Tasting history ordering (most recent first).
+  - Two-page nav: no page-level "Back to dashboard" link anywhere in the
+    wine cellar blueprint (that's the top-bar button now, see
+    `app/templates/base.html`); the Cellar and Wine Tasting pages link to
+    each other and to "Add a Tasting".
+  - A standalone tasting (no bottle) shows up on the Wine Tasting page but
+    never on the Cellar page.
+  - The tasting card's rendered HTML: the average-score badge shows the
+    right rounded number, and each taster's individual score appears in
+    the hover/focus popover markup.
 - **`tests/test_auth.py`** — accounts, login, and the site-wide + per-project
   access gates:
   - Signup: succeeds with zero project access, rejects a duplicate
@@ -136,7 +162,7 @@ python -m pytest tests/test_wine_cellar_unit.py -v          # unit only
 python -m pytest tests/test_wine_cellar_integration.py -v   # integration only
 ```
 
-As of this writing, the full suite is **104 tests**, all passing (`python -m
+As of this writing, the full suite is **126 tests**, all passing (`python -m
 pytest tests/ -v`).
 
 ## End-to-end verification (production, manual)

@@ -4,13 +4,16 @@ tested in isolation from HTTP routing and without touching the database."""
 from datetime import date
 
 import pytest
+from werkzeug.datastructures import MultiDict
 
-from app.blueprints.wine_cellar.models import Bottle
+from app.blueprints.wine_cellar.models import Bottle, TastingHistory
 from app.blueprints.wine_cellar.routes import (
     _bottle_from_form,
+    _image_from_files,
     _parse_date,
     _parse_decimal,
     _parse_int,
+    _scores_from_form,
 )
 
 
@@ -183,3 +186,105 @@ def test_bottle_from_form_strips_whitespace_and_blanks_become_none():
     assert data["name"] == "Test Wine"
     assert data["producer"] is None
     assert data["region"] == "Piedmont"
+
+
+# ---------------------------------------------------------------------------
+# TastingHistory.average_score
+# ---------------------------------------------------------------------------
+
+def test_average_score_none_with_no_scores():
+    history = TastingHistory(wine_name="Test")
+    assert history.average_score is None
+
+
+# ---------------------------------------------------------------------------
+# _scores_from_form
+# ---------------------------------------------------------------------------
+
+def test_scores_from_form_parses_multiple_rows():
+    errors = []
+    form = MultiDict(
+        [("taster_name", "Zach"), ("score", "90"), ("taster_name", "Sam"), ("score", "85")]
+    )
+    scores = _scores_from_form(form, errors)
+    assert not errors
+    assert scores == [
+        {"taster_name": "Zach", "score": 90},
+        {"taster_name": "Sam", "score": 85},
+    ]
+
+
+def test_scores_from_form_skips_fully_blank_rows():
+    errors = []
+    form = MultiDict([("taster_name", ""), ("score", "")])
+    assert _scores_from_form(form, errors) == []
+    assert not errors
+
+
+def test_scores_from_form_requires_name_when_score_given():
+    errors = []
+    form = MultiDict([("taster_name", ""), ("score", "90")])
+    scores = _scores_from_form(form, errors)
+    assert "Each score needs a taster name." in errors
+    assert scores == []
+
+
+def test_scores_from_form_rejects_out_of_range_score():
+    errors = []
+    form = MultiDict([("taster_name", "Zach"), ("score", "150")])
+    scores = _scores_from_form(form, errors)
+    assert "Zach's score must be a whole number between 0 and 100." in errors
+    assert scores == []
+
+
+def test_scores_from_form_rejects_non_numeric_score():
+    errors = []
+    form = MultiDict([("taster_name", "Zach"), ("score", "great")])
+    scores = _scores_from_form(form, errors)
+    assert "Zach's score must be a whole number between 0 and 100." in errors
+
+
+# ---------------------------------------------------------------------------
+# _image_from_files
+# ---------------------------------------------------------------------------
+
+class _FakeFile:
+    def __init__(self, filename, mimetype, content=b"data"):
+        self.filename = filename
+        self.mimetype = mimetype
+        self._content = content
+
+    def read(self):
+        return self._content
+
+
+def test_image_from_files_returns_none_when_no_file():
+    errors = []
+    data, mimetype = _image_from_files({}, errors)
+    assert data is None and mimetype is None
+    assert not errors
+
+
+def test_image_from_files_returns_none_when_filename_empty():
+    errors = []
+    files = {"image": _FakeFile(filename="", mimetype="image/png")}
+    data, mimetype = _image_from_files(files, errors)
+    assert data is None and mimetype is None
+    assert not errors
+
+
+def test_image_from_files_accepts_image_mimetype():
+    errors = []
+    files = {"image": _FakeFile(filename="wine.png", mimetype="image/png", content=b"\x89PNG")}
+    data, mimetype = _image_from_files(files, errors)
+    assert data == b"\x89PNG"
+    assert mimetype == "image/png"
+    assert not errors
+
+
+def test_image_from_files_rejects_non_image_mimetype():
+    errors = []
+    files = {"image": _FakeFile(filename="notes.txt", mimetype="text/plain")}
+    data, mimetype = _image_from_files(files, errors)
+    assert data is None and mimetype is None
+    assert "Uploaded file must be an image." in errors

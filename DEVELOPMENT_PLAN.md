@@ -25,9 +25,12 @@ added (or left unbuilt) without touching the others.
 
 - Landing page with 5 tiles (Wine Cellar Tracker, Grocery List, Recipe
   Tracker, Honeymoon, Investing)
-- **Wine Cellar Tracker is built out**: add/edit/delete bottles, a searchable
-  table view, drink-window badges, a "Drink" action that decrements quantity
-  and logs to a separate Tasting History page. See its own section below.
+- **Wine Cellar Tracker is built out**, as two pages: a Cellar (add/edit/
+  delete bottles, searchable table, drink-window badges, a "Drink" action
+  that decrements quantity and logs a tasting) and a Wine Tasting page (a
+  card grid of every tasting — cellar-linked or logged standalone — each
+  with an optional photo and a multi-person average score you can hover to
+  break down). See its own section below.
 - **Grocery List is built out**: a running household list grouped by fixed
   category, with a separate catalog view of past items to re-add.
 - **Recipe Tracker is built out**: add/edit/delete recipes with structured
@@ -151,35 +154,73 @@ and one Cloud Run service — no need to stand up new infra per project.
 ## Wine Cellar Tracker
 
 The first built-out project. Reference implementation for future projects.
+Two pages: the Cellar (`/wine-cellar/`, inventory) and Wine Tasting
+(`/wine-cellar/history`, a log of tastings — from the cellar or not).
 
 - **Data model** (`app/blueprints/wine_cellar/models.py`):
   - `Bottle` (table `wine_bottles`) — one row per distinct wine, not per
     physical bottle, with a `quantity` count. Fields: name, producer,
     vintage, varietal, region, quantity, location, purchase price/date/
     source, drink window (start/end year).
-  - `TastingHistory` (table `wine_tasting_history`) — one row per bottle
-    actually drunk. Stores a snapshot of the wine's name/producer/vintage
-    at drink time (plus a nullable `bottle_id` FK) so history stays
-    meaningful even if the original bottle entry is later edited or
-    deleted. Holds `consumed_date`, `rating` (0–100), and free-text `notes`.
+  - `TastingHistory` (table `wine_tasting_history`) — one row per tasting.
+    Stores a snapshot of the wine's name/producer/vintage at tasting time
+    (plus a nullable `bottle_id` FK) so history stays meaningful even if
+    the original bottle entry is later edited or deleted — and so a
+    tasting can exist with no cellar entry at all. Holds `consumed_date`,
+    free-text `notes`, and an optional `image`/`image_mimetype` (raw bytes
+    stored directly in Postgres — see "Tasting photos" below).
+  - `TastingScore` (table `wine_tasting_scores`) — one row per taster's
+    score (0–100) for a tasting, `tasting_id` FK with `ondelete="CASCADE"`.
+    Replaces an earlier single `rating` int column: a tasting can have
+    several people's scores, not just one. `TastingHistory.average_score`
+    (a Python property, not a stored column) averages them; `None` if
+    nobody's scored it yet.
 - **Behavior:**
   - The bottle list (`/wine-cellar/`) only shows bottles with `quantity > 0`,
     sorted by name, with a text search across name/producer/varietal/region.
   - A "Drink" action (`/wine-cellar/<id>/drink`) decrements `quantity` by 1
-    and creates one `TastingHistory` row (optional rating/notes, date
-    defaults to today). The bottle drops off the main list once quantity
-    hits 0, but the row itself isn't deleted — history keeps referencing it.
+    and creates one `TastingHistory` row. The bottle drops off the main
+    list once quantity hits 0, but the row itself isn't deleted — history
+    keeps referencing it.
+  - "Add a Tasting" (`/wine-cellar/tastings/add`) logs a tasting with no
+    cellar bottle involved at all — free-text wine name/producer/vintage
+    instead of picking a `Bottle`, `bottle_id` stays `None`, no quantity
+    change. Same scores/photo/notes fields as the cellar-linked drink form.
+  - Both tasting forms share one partial
+    (`templates/wine_cellar/_tasting_fields.html`) for the repeatable
+    taster-name/score rows and the photo input, so the two flows can't
+    drift apart. Score rows use the same "clone a `<template>`" vanilla-JS
+    pattern as Recipe Tracker's ingredient rows (`_scores_from_form` in
+    `routes.py` parses them back with `request.form.getlist(...)`).
   - Drink-window badges ("Cellar" / "Drink now" / "Past window") are computed
     from the current year vs. `drink_window_start`/`drink_window_end` —
     no separate filter view, just inline in the table.
   - Deleting a bottle (`/wine-cellar/<id>/delete`) nulls out `bottle_id` on
     any related history rows rather than cascading the delete, so tasting
     history is never destroyed by cleaning up the cellar list.
+  - The tasting page (`/wine-cellar/history`) renders as a card grid, not a
+    table: each card shows the average-score badge, and hovering (or
+    focusing, for keyboard use) reveals a popover with every taster's
+    individual score — CSS `:hover`/`:focus-within`, no JS needed for that
+    part.
+- **Tasting photos:** uploaded as `multipart/form-data`, validated to be an
+  `image/*` mimetype, and stored as raw bytes on the `TastingHistory` row
+  itself rather than on disk. This is deliberate: the app runs on Cloud Run,
+  which wipes local container disk on every scale-to-zero/restart, and no
+  object storage (e.g. a GCS bucket) is wired up for this project — Neon
+  Postgres is the only durable storage that already exists. Served back via
+  `/wine-cellar/tastings/<id>/image`, which sets `Content-Type` from the
+  stored mimetype. Fine at personal-cellar scale; would need to move to
+  object storage if photo volume ever got large.
 - **Forms:** plain HTML + manual server-side validation (required fields,
-  numeric ranges, drink-window ordering) with flash messages — no
-  Flask-WTF, to stay dependency-light.
-- **Tests:** `tests/test_wine_cellar.py` covers add/edit/delete, the drink
-  → history flow, the quantity-reaches-zero list behavior, and search.
+  numeric ranges, drink-window ordering, score range, image mimetype) with
+  flash messages — no Flask-WTF, to stay dependency-light.
+- **Tests:** `tests/test_wine_cellar_unit.py` (pure functions: form parsing,
+  `_scores_from_form`, `_image_from_files`, `average_score`),
+  `tests/test_wine_cellar.py` (feature-level: add/edit/delete, both tasting
+  flows, scores, image upload/serve round-trip), `tests/test_wine_cellar_
+  integration.py` (cross-page flows: nav links, card rendering, full
+  bottle lifecycle).
 
 ## Recipe Tracker
 

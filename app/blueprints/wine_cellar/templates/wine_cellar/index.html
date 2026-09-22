@@ -3,12 +3,10 @@
 {% block title %}Wine Cellar{% endblock %}
 
 {% block content %}
-  <p><a href="{{ url_for('core.index') }}">&larr; Back to dashboard</a></p>
-
   <div class="page-header">
     <h1>Wine Cellar</h1>
     <div class="page-header-actions">
-      <a class="btn" href="{{ url_for('wine_cellar.history') }}">Tasting History</a>
+      <a class="btn" href="{{ url_for('wine_cellar.history') }}">Wine Tasting</a>
       <a class="btn btn--primary" href="{{ url_for('wine_cellar.add') }}">Add Bottle</a>
     </div>
   </div>

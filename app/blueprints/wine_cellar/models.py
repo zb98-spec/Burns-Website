@@ -46,7 +46,30 @@ class TastingHistory(db.Model):
     producer = db.Column(db.String(200))
     vintage = db.Column(db.Integer)
     consumed_date = db.Column(db.Date, default=date.today, nullable=False)
-    rating = db.Column(db.Integer)
     notes = db.Column(db.Text)
+    image = db.Column(db.LargeBinary)
+    image_mimetype = db.Column(db.String(100))
 
     bottle = db.relationship("Bottle")
+    scores = db.relationship(
+        "TastingScore", backref="tasting", cascade="all, delete-orphan"
+    )
+
+    @property
+    def average_score(self):
+        if not self.scores:
+            return None
+        return sum(s.score for s in self.scores) / len(self.scores)
+
+
+class TastingScore(db.Model):
+    __tablename__ = "wine_tasting_scores"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tasting_id = db.Column(
+        db.Integer,
+        db.ForeignKey("wine_tasting_history.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    taster_name = db.Column(db.String(200), nullable=False)
+    score = db.Column(db.Integer, nullable=False)

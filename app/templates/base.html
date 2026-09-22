@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="site-title" href="{{ url_for('core.index') }}">Burns Dashboard</a>
+    <a class="btn site-title-btn" href="{{ url_for('core.index') }}">Burns Dashboard</a>
     {% if current_user.is_authenticated %}
       <nav class="site-nav">
         <span class="site-user">{{ current_user.username }}</span>

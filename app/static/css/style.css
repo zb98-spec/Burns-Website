@@ -27,11 +27,8 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
-.site-title {
-  font-size: 1.1rem;
+.site-title-btn {
   font-weight: 600;
-  color: var(--fg);
-  text-decoration: none;
 }
 
 .site-nav {
@@ -264,6 +261,13 @@ th {
   color: #445070;
 }
 
+.badge--score {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.65rem;
+}
+
 /* Grocery list */
 
 .category-heading {
@@ -429,4 +433,87 @@ th {
   white-space: pre-wrap;
   max-width: 700px;
   line-height: 1.5;
+}
+
+/* Wine tasting */
+
+.score-row {
+  grid-template-columns: 1fr 5rem auto;
+}
+
+.tasting-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.tasting-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.tasting-card:hover,
+.tasting-card:focus-within {
+  border-color: var(--accent);
+}
+
+.tasting-card-image {
+  display: block;
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+
+.tasting-card-body {
+  padding: 1rem;
+}
+
+.tasting-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tasting-card-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.tasting-card-meta {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.tasting-card-notes {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+}
+
+.score-popover {
+  display: none;
+  position: absolute;
+  inset: auto 1rem 1rem 1rem;
+  background: var(--fg);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  z-index: 1;
+}
+
+.score-popover ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tasting-card:hover .score-popover,
+.tasting-card:focus-within .score-popover {
+  display: block;
 }
