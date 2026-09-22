@@ -81,7 +81,7 @@ def test_full_bottle_lifecycle(client, app):
     # Drink once: quantity drops, still visible in the list.
     client.post(
         f"/wine-cellar/{bottle_id}/drink",
-        data={"consumed_date": "2026-01-01", "rating": "90"},
+        data={"consumed_date": "2026-01-01"},
         follow_redirects=True,
     )
     list_response = client.get("/wine-cellar/")
@@ -90,7 +90,7 @@ def test_full_bottle_lifecycle(client, app):
     # Drink again: quantity hits zero, bottle drops out of the active list.
     client.post(
         f"/wine-cellar/{bottle_id}/drink",
-        data={"consumed_date": "2026-01-02", "rating": "88"},
+        data={"consumed_date": "2026-01-02"},
         follow_redirects=True,
     )
     empty_list_response = client.get("/wine-cellar/")
