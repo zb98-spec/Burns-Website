@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "burns-website",
-      "runtimeExecutable": "/Users/zachburns/Documents/Coding/Claud/Burns-Website/.venv/bin/python",
+      "runtimeExecutable": "/Library/Frameworks/Python.framework/Versions/3.10/bin/python3",
       "runtimeArgs": ["wsgi.py"],
-      "port": 8080
+      "port": 8080,
+      "autoPort": true
     }
   ]
 }
