@@ -26,6 +26,38 @@ def _admin_view_active():
     return current_user.is_admin and session.get("honeymoon_view_mode", "admin") == "admin"
 
 
+def _format_date_range(start, end):
+    if start == end:
+        return start.strftime("%b %-d")
+    if start.month == end.month:
+        return f"{start.strftime('%b %-d')}–{end.strftime('%-d')}"
+    return f"{start.strftime('%b %-d')}–{end.strftime('%b %-d')}"
+
+
+def _stops_for(days):
+    """Collapse consecutive same-location days into one map pin per stay,
+    so a multi-night stop doesn't stack duplicate markers."""
+    stays = []
+    for d in days:
+        if d.location_lat is None or d.location_lng is None:
+            continue
+        key = (d.location_name, d.location_lat, d.location_lng)
+        if stays and stays[-1]["key"] == key:
+            stays[-1]["end"] = d.date
+        else:
+            stays.append({"key": key, "name": d.location_name, "lat": d.location_lat, "lng": d.location_lng, "start": d.date, "end": d.date})
+
+    return [
+        {
+            "name": s["name"],
+            "lat": s["lat"],
+            "lng": s["lng"],
+            "date_range": _format_date_range(s["start"], s["end"]),
+        }
+        for s in stays
+    ]
+
+
 @honeymoon_bp.route("/")
 def index():
     all_days = Day.query.order_by(Day.date).all()
@@ -34,16 +66,7 @@ def index():
     today = date.today()
     days = all_days if admin_view else [d for d in all_days if d.date <= today]
 
-    stops = [
-        {
-            "name": d.location_name,
-            "lat": d.location_lat,
-            "lng": d.location_lng,
-            "date": d.date.isoformat(),
-        }
-        for d in all_days
-        if d.location_lat is not None and d.location_lng is not None
-    ]
+    stops = _stops_for(days)
 
     return render_template(
         "honeymoon/index.html",

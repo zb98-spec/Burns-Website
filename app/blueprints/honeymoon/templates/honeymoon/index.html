@@ -71,7 +71,8 @@
     if (stops.length) {
       const latLngs = stops.map((stop) => [stop.lat, stop.lng]);
       stops.forEach((stop) => {
-        L.marker([stop.lat, stop.lng]).addTo(map).bindPopup(stop.name || 'Stop');
+        const label = (stop.name || 'Stop') + (stop.date_range ? '<br>' + stop.date_range : '');
+        L.marker([stop.lat, stop.lng]).addTo(map).bindPopup(label);
       });
       if (latLngs.length > 1) {
         L.polyline(latLngs, { color: '#2f6f4f' }).addTo(map);
