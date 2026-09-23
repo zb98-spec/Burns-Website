@@ -20,12 +20,15 @@ depends_on = None
 # (first_night, last_night, staying label, map pin name, lat, lng). Ranges
 # are checkin-through-checkout, so a stay's last_night is the night before
 # the next entry's first_night (the checkout day itself belongs to
-# wherever that night is spent). Coordinates are approximate placeholders
-# for the map preview, not verified addresses.
+# wherever that night is spent). Lake Garda's coordinates are a rough
+# regional placeholder; the rest are geocoded from each property's own
+# listed address.
 STAYS = [
     (date(2026, 9, 22), date(2026, 9, 24), "Lake Garda", "Lake Garda", 45.4936, 10.6088),
-    (date(2026, 9, 25), date(2026, 9, 27), "Dimora Ghirlandaio", "Dimora Ghirlandaio", 43.4674, 11.0431),
-    (date(2026, 9, 28), date(2026, 10, 1), "Borgo Scopeta", "Borgo Scopeta", 43.5827, 11.3167),
+    # Via Colleramole 59, Impruneta (Firenze) — per the property's own site.
+    (date(2026, 9, 25), date(2026, 9, 27), "Dimora Ghirlandaio", "Dimora Ghirlandaio", 43.71650, 11.20829),
+    # Localita Borgo Scopeto, Castelnuovo Berardenga (Siena) — geocoded.
+    (date(2026, 9, 28), date(2026, 10, 1), "Borgo Scopeta", "Borgo Scopeta", 43.39249, 11.36936),
     (date(2026, 10, 2), date(2026, 10, 3), "Naples", "Naples", 40.8518, 14.2681),
     (date(2026, 10, 4), date(2026, 10, 5), "Palermo", "Palermo", 38.1157, 13.3615),
     (date(2026, 10, 6), date(2026, 10, 9), "Syracuse, Sicily", "Syracuse, Sicily", 37.0755, 15.2866),
