@@ -36,9 +36,9 @@ PROJECTS = [
     {
         "key": "honeymoon",
         "name": "Honeymoon",
-        "description": "Plan the honeymoon.",
+        "description": "Day-by-day Italy & Sicily itinerary.",
         "endpoint": "honeymoon.index",
-        "status": "coming soon",
+        "status": "live",
     },
     {
         "key": "investing",
