@@ -653,3 +653,120 @@ th {
     position: static;
   }
 }
+
+.stop-popup-image {
+  display: block;
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 0.4rem;
+}
+
+.stop-popup-name {
+  font-weight: 600;
+}
+
+.stop-popup-dates {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.stop-popup-link {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+}
+
+/* Honeymoon theme — warm Italian palette, texture, and a photo hero */
+
+.honeymoon-theme {
+  --hm-terracotta: #c1592f;
+  --hm-terracotta-dark: #8f3f1f;
+  --hm-ochre: #d9a441;
+  --hm-olive: #6b7a3a;
+  --hm-ink: #3b2a20;
+  --hm-cream: #fbf3e3;
+  background-color: var(--hm-cream);
+  background-image: radial-gradient(rgba(59, 42, 32, 0.07) 1px, transparent 1.2px);
+  background-size: 14px 14px;
+  border: 1px solid #e6d3ad;
+  border-radius: 12px;
+  padding: 1.5rem;
+  color: var(--hm-ink);
+}
+
+.honeymoon-theme h1,
+.honeymoon-theme h2 {
+  font-family: "Playfair Display", Georgia, serif;
+  color: var(--hm-ink);
+}
+
+.honeymoon-hero {
+  position: relative;
+  background-image: linear-gradient(135deg, rgba(59, 30, 15, 0.72), rgba(120, 60, 25, 0.32)), url("/static/images/honeymoon/tuscany-chianti.jpg");
+  background-size: cover;
+  background-position: center 60%;
+  border-radius: 10px;
+  padding: 2rem 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.honeymoon-hero h1 {
+  color: #fdf6e8;
+  font-size: 2rem;
+  margin: 0;
+}
+
+.honeymoon-hero .page-subtitle {
+  color: #f1e2c2;
+}
+
+.honeymoon-hero .view-toggle span {
+  color: #fdf6e8;
+}
+
+.honeymoon-hero .switch-track {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.honeymoon-theme .day-card {
+  background: #fffaf0;
+  border: 1px solid #e6d3ad;
+  border-top: 4px solid var(--hm-terracotta);
+  box-shadow: 0 1px 2px rgba(59, 42, 32, 0.08);
+}
+
+.honeymoon-theme .day-card--today {
+  border-color: var(--hm-olive);
+  border-top-color: var(--hm-olive);
+}
+
+.honeymoon-theme .day-card-header h2 {
+  font-size: 1.1rem;
+}
+
+.honeymoon-theme .day-fields dt {
+  color: var(--hm-terracotta-dark);
+}
+
+.honeymoon-theme .btn:hover {
+  border-color: var(--hm-terracotta);
+}
+
+.honeymoon-theme .btn--primary,
+.honeymoon-theme .switch input:checked + .switch-track {
+  background: var(--hm-terracotta);
+  border-color: var(--hm-terracotta);
+}
+
+.honeymoon-theme #honeymoon-map {
+  border: 3px solid var(--hm-ochre);
+}
+
+.honeymoon-credit {
+  margin: 1rem 0 0;
+  font-size: 0.75rem;
+  color: #9c8865;
+  text-align: right;
+}
