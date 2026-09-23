@@ -20,3 +20,5 @@ class Day(db.Model):
     location_name = db.Column(db.String(200))
     location_lat = db.Column(db.Float)
     location_lng = db.Column(db.Float)
+    location_url = db.Column(db.String(500))
+    location_image_url = db.Column(db.String(500))

@@ -45,13 +45,24 @@ def _stops_for(days):
         if stays and stays[-1]["key"] == key:
             stays[-1]["end"] = d.date
         else:
-            stays.append({"key": key, "name": d.location_name, "lat": d.location_lat, "lng": d.location_lng, "start": d.date, "end": d.date})
+            stays.append({
+                "key": key,
+                "name": d.location_name,
+                "lat": d.location_lat,
+                "lng": d.location_lng,
+                "url": d.location_url,
+                "image_url": d.location_image_url,
+                "start": d.date,
+                "end": d.date,
+            })
 
     return [
         {
             "name": s["name"],
             "lat": s["lat"],
             "lng": s["lng"],
+            "url": s["url"],
+            "image_url": s["image_url"],
             "date_range": _format_date_range(s["start"], s["end"]),
         }
         for s in stays
@@ -93,7 +104,7 @@ def edit(day_id):
     day = db.get_or_404(Day, day_id)
 
     if request.method == "POST":
-        for field in ("staying", "travel", "breakfast", "lunch", "dinner", "activities", "location_name"):
+        for field in ("staying", "travel", "breakfast", "lunch", "dinner", "activities", "location_name", "location_url", "location_image_url"):
             setattr(day, field, request.form.get(field, "").strip() or None)
         lat = request.form.get("location_lat", "").strip()
         lng = request.form.get("location_lng", "").strip()

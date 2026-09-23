@@ -3,7 +3,8 @@
 {% block title %}Honeymoon{% endblock %}
 
 {% block content %}
-  <div class="page-header">
+<div class="honeymoon-theme">
+  <div class="page-header honeymoon-hero">
     <div>
       <h1>Honeymoon</h1>
       <p class="page-subtitle">September 22 &ndash; October 11, 2026 &middot; Italy &amp; Sicily</p>
@@ -26,7 +27,7 @@
           <article class="day-card {{ 'day-card--today' if day.date == today else '' }}">
             <div class="day-card-header">
               <h2>Day {{ loop.index }} &middot; {{ day.date.strftime('%a, %b %-d') }}</h2>
-              {% if current_user.is_admin %}
+              {% if admin_view %}
                 <a class="btn" href="{{ url_for('honeymoon.edit', day_id=day.id) }}">Edit</a>
               {% endif %}
             </div>
@@ -55,9 +56,14 @@
       <div id="honeymoon-map"></div>
     </div>
   </div>
+
+  <p class="honeymoon-credit">Placeholder location photos via Wikimedia Commons.</p>
+</div>
 {% endblock %}
 
 {% block scripts %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
@@ -72,7 +78,7 @@
 
     const stopIcon = L.divIcon({
       className: '',
-      html: '<div style="width:14px;height:14px;border-radius:50%;background:#2f6f4f;border:2px solid #fff;box-shadow:0 0 0 1px #2f6f4f;"></div>',
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:#c1592f;border:2px solid #fff;box-shadow:0 0 0 1px #c1592f;"></div>',
       iconSize: [14, 14],
       iconAnchor: [7, 7],
       popupAnchor: [0, -7],
@@ -81,11 +87,23 @@
     if (stops.length) {
       const latLngs = stops.map((stop) => [stop.lat, stop.lng]);
       stops.forEach((stop) => {
-        const label = (stop.name || 'Stop') + (stop.date_range ? '<br>' + stop.date_range : '');
-        L.marker([stop.lat, stop.lng], { icon: stopIcon }).addTo(map).bindPopup(label);
+        const parts = [];
+        if (stop.image_url) {
+          parts.push('<img class="stop-popup-image" src="' + stop.image_url + '" alt="">');
+        }
+        parts.push('<div class="stop-popup-name">' + (stop.name || 'Stop') + '</div>');
+        if (stop.date_range) {
+          parts.push('<div class="stop-popup-dates">' + stop.date_range + '</div>');
+        }
+        if (stop.url) {
+          parts.push('<a class="stop-popup-link" href="' + stop.url + '" target="_blank" rel="noopener">Visit website</a>');
+        }
+        L.marker([stop.lat, stop.lng], { icon: stopIcon })
+          .addTo(map)
+          .bindPopup(parts.join(''), { maxWidth: 220 });
       });
       if (latLngs.length > 1) {
-        L.polyline(latLngs, { color: '#2f6f4f', weight: 3 }).addTo(map);
+        L.polyline(latLngs, { color: '#c1592f', weight: 3 }).addTo(map);
       }
       map.fitBounds(latLngs, { padding: [24, 24] });
     }
