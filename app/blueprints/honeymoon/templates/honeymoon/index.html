@@ -62,20 +62,30 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const stops = {{ stops | tojson }};
-    const map = L.map('honeymoon-map').setView([40.5, 15.5], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 18,
+    const map = L.map('honeymoon-map', { maxZoom: 8 }).setView([40.5, 15.5], 6);
+    // World_Physical_Map: a hand-painted terrain relief basemap, free with
+    // no API key. Only rendered up to zoom 8 by Esri, hence the map cap.
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri',
+      maxZoom: 8,
     }).addTo(map);
+
+    const stopIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:#2f6f4f;border:2px solid #fff;box-shadow:0 0 0 1px #2f6f4f;"></div>',
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+      popupAnchor: [0, -7],
+    });
 
     if (stops.length) {
       const latLngs = stops.map((stop) => [stop.lat, stop.lng]);
       stops.forEach((stop) => {
         const label = (stop.name || 'Stop') + (stop.date_range ? '<br>' + stop.date_range : '');
-        L.marker([stop.lat, stop.lng]).addTo(map).bindPopup(label);
+        L.marker([stop.lat, stop.lng], { icon: stopIcon }).addTo(map).bindPopup(label);
       });
       if (latLngs.length > 1) {
-        L.polyline(latLngs, { color: '#2f6f4f' }).addTo(map);
+        L.polyline(latLngs, { color: '#2f6f4f', weight: 3 }).addTo(map);
       }
       map.fitBounds(latLngs, { padding: [24, 24] });
     }
