@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ day.date.strftime('%b %-d') }} · Honeymoon{% endblock %}
+
+{% block content %}
+  <p><a href="{{ url_for('honeymoon.index') }}">&larr; Back to itinerary</a></p>
+  <h1>{{ day.date.strftime('%A, %B %-d') }}</h1>
+
+  <form method="post" class="stack-form">
+    <label>
+      Staying
+      <textarea name="staying" rows="2" placeholder="Where you're sleeping tonight, or N/A on departure days">{{ day.staying or '' }}</textarea>
+    </label>
+    <label>
+      Travel
+      <textarea name="travel" rows="2" placeholder="Flights, drives, transfers — times/flight numbers when known">{{ day.travel or '' }}</textarea>
+    </label>
+    <label>
+      Breakfast
+      <textarea name="breakfast" rows="2">{{ day.breakfast or '' }}</textarea>
+    </label>
+    <label>
+      Lunch
+      <textarea name="lunch" rows="2">{{ day.lunch or '' }}</textarea>
+    </label>
+    <label>
+      Dinner
+      <textarea name="dinner" rows="2">{{ day.dinner or '' }}</textarea>
+    </label>
+    <label>
+      Activities
+      <textarea name="activities" rows="3" placeholder="Sightseeing, tours, workouts, spa, ceremonies, etc.">{{ day.activities or '' }}</textarea>
+    </label>
+
+    <h2>Map pin</h2>
+    <label>
+      Location name
+      <input type="text" name="location_name" placeholder="e.g. Sorrento" value="{{ day.location_name or '' }}">
+    </label>
+    <div class="form-row">
+      <label>
+        Latitude
+        <input type="number" step="any" name="location_lat" value="{{ day.location_lat if day.location_lat is not none else '' }}">
+      </label>
+      <label>
+        Longitude
+        <input type="number" step="any" name="location_lng" value="{{ day.location_lng if day.location_lng is not none else '' }}">
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary">Save</button>
+      <a class="btn" href="{{ url_for('honeymoon.index') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

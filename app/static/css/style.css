@@ -517,3 +517,139 @@ th {
 .tasting-card:focus-within .score-popover {
   display: block;
 }
+
+/* Honeymoon */
+
+.page-subtitle {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 2.4rem;
+  height: 1.4rem;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-track {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.switch-track::before {
+  content: "";
+  position: absolute;
+  height: 1.1rem;
+  width: 1.1rem;
+  left: 0.15rem;
+  bottom: 0.15rem;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.switch input:checked + .switch-track {
+  background: var(--accent);
+}
+
+.switch input:checked + .switch-track::before {
+  transform: translateX(1rem);
+}
+
+.honeymoon-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.honeymoon-days {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.honeymoon-map-pane {
+  position: sticky;
+  top: 1rem;
+}
+
+#honeymoon-map {
+  height: 70vh;
+  min-height: 320px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.day-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.day-card--today {
+  border-color: var(--accent);
+}
+
+.day-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.day-card-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.day-fields {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.75rem;
+}
+
+.day-fields dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.day-fields dd {
+  margin: 0;
+  white-space: pre-line;
+}
+
+@media (max-width: 860px) {
+  .honeymoon-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .honeymoon-map-pane {
+    position: static;
+  }
+}

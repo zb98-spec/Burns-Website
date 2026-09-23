@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Honeymoon{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1>Honeymoon</h1>
+      <p class="page-subtitle">September 22 &ndash; October 11, 2026 &middot; Italy &amp; Sicily</p>
+    </div>
+    {% if current_user.is_admin %}
+      <form method="post" action="{{ url_for('honeymoon.toggle_view') }}" class="inline-form view-toggle">
+        <label class="switch">
+          <input type="checkbox" onchange="this.form.submit()" {{ 'checked' if not admin_view else '' }}>
+          <span class="switch-track"></span>
+        </label>
+        <span>{{ 'Guest view' if not admin_view else 'Admin view (all days)' }}</span>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="honeymoon-layout">
+    <div class="honeymoon-days">
+      {% if days %}
+        {% for day in days %}
+          <article class="day-card {{ 'day-card--today' if day.date == today else '' }}">
+            <div class="day-card-header">
+              <h2>Day {{ loop.index }} &middot; {{ day.date.strftime('%a, %b %-d') }}</h2>
+              {% if current_user.is_admin %}
+                <a class="btn" href="{{ url_for('honeymoon.edit', day_id=day.id) }}">Edit</a>
+              {% endif %}
+            </div>
+            <dl class="day-fields">
+              <dt>Staying</dt>
+              <dd>{{ day.staying or 'TBD' }}</dd>
+              <dt>Travel</dt>
+              <dd>{{ day.travel or 'TBD' }}</dd>
+              <dt>Breakfast</dt>
+              <dd>{{ day.breakfast or 'TBD' }}</dd>
+              <dt>Lunch</dt>
+              <dd>{{ day.lunch or 'TBD' }}</dd>
+              <dt>Dinner</dt>
+              <dd>{{ day.dinner or 'TBD' }}</dd>
+              <dt>Activities</dt>
+              <dd>{{ day.activities or 'TBD' }}</dd>
+            </dl>
+          </article>
+        {% endfor %}
+      {% else %}
+        <p>No days to show yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="honeymoon-map-pane">
+      <div id="honeymoon-map"></div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const stops = {{ stops | tojson }};
+    const map = L.map('honeymoon-map', { maxZoom: 8 }).setView([40.5, 15.5], 6);
+    // World_Physical_Map: a hand-painted terrain relief basemap, free with
+    // no API key. Only rendered up to zoom 8 by Esri, hence the map cap.
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri',
+      maxZoom: 8,
+    }).addTo(map);
+
+    const stopIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:#2f6f4f;border:2px solid #fff;box-shadow:0 0 0 1px #2f6f4f;"></div>',
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+      popupAnchor: [0, -7],
+    });
+
+    if (stops.length) {
+      const latLngs = stops.map((stop) => [stop.lat, stop.lng]);
+      stops.forEach((stop) => {
+        const label = (stop.name || 'Stop') + (stop.date_range ? '<br>' + stop.date_range : '');
+        L.marker([stop.lat, stop.lng], { icon: stopIcon }).addTo(map).bindPopup(label);
+      });
+      if (latLngs.length > 1) {
+        L.polyline(latLngs, { color: '#2f6f4f', weight: 3 }).addTo(map);
+      }
+      map.fitBounds(latLngs, { padding: [24, 24] });
+    }
+  </script>
+{% endblock %}
