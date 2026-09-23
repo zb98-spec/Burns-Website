@@ -54,6 +54,22 @@ into active work when they're ready to be tackled.
 - Wine Cellar: CSV import for bringing in an existing spreadsheet of
   bottles (explicitly deferred when originally scoped — manual entry only
   for the first build).
+- Wine Cellar: a delete button for individual tastings on the Wine Tasting
+  page. `TastingHistory` rows currently can only go away as a side effect
+  of deleting the parent `Bottle` (which nulls `bottle_id` rather than
+  deleting the tasting) — there's no route/UI to remove a tasting entry
+  directly, including a bad/duplicate/test one.
+- Wine Cellar: a map on the Wine Tasting page with a pin for where each
+  tasting happened. Needs a location field on `TastingHistory` (and a way
+  to set it — manual address entry + geocoding, or device geolocation at
+  drink time) plus a map component; no mapping library is wired into the
+  project yet.
+- Wine Cellar: roll each wine's tasting scores up into the Cellar page —
+  e.g. an aggregate/average score shown next to a `Bottle` in the
+  inventory table, computed from the `TastingScore` rows of its linked
+  `TastingHistory` entries (a bottle can have multiple tastings over
+  time). Currently the average score only shows per-tasting on the Wine
+  Tasting page, with no rollup back to the Cellar view.
 - Recipe Tracker: photo upload — deferred until real object storage (e.g.
   a GCS bucket) exists, since Cloud Run's filesystem doesn't persist
   (same root cause as the SQLite-doesn't-persist issue above).
