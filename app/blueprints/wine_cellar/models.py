@@ -46,6 +46,7 @@ class TastingHistory(db.Model):
     producer = db.Column(db.String(200))
     vintage = db.Column(db.Integer)
     consumed_date = db.Column(db.Date, default=date.today, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     notes = db.Column(db.Text)
     image = db.Column(db.LargeBinary)
     image_mimetype = db.Column(db.String(100))

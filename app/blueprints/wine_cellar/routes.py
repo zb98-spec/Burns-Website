@@ -314,7 +314,134 @@ def tasting_image(tasting_id):
     return Response(entry.image, mimetype=entry.image_mimetype or "application/octet-stream")
 
 
+PAGE_SIZE = 15
+
+
 @wine_cellar_bp.route("/history")
 def history():
-    entries = TastingHistory.query.order_by(TastingHistory.consumed_date.desc()).all()
-    return render_template("wine_cellar/history.html", entries=entries)
+    query = TastingHistory.query.order_by(
+        TastingHistory.consumed_date.desc(), TastingHistory.id.desc()
+    )
+    total = query.count()
+    entries = query.limit(PAGE_SIZE).all()
+    return render_template(
+        "wine_cellar/history.html",
+        entries=entries,
+        offset=len(entries),
+        has_more=len(entries) < total,
+        current_year=date.today().year,
+    )
+
+
+@wine_cellar_bp.route("/history/more")
+def history_more():
+    offset = max(_parse_int(request.args.get("offset")) or 0, 0)
+    query = TastingHistory.query.order_by(
+        TastingHistory.consumed_date.desc(), TastingHistory.id.desc()
+    )
+    total = query.count()
+    entries = query.offset(offset).limit(PAGE_SIZE).all()
+    html = render_template("wine_cellar/_tasting_cards.html", entries=entries)
+    return {
+        "html": html,
+        "offset": offset + len(entries),
+        "has_more": offset + len(entries) < total,
+    }
+
+
+@wine_cellar_bp.route("/tastings/<int:tasting_id>/delete", methods=["POST"])
+def delete_tasting(tasting_id):
+    entry = db.get_or_404(TastingHistory, tasting_id)
+    name = entry.wine_name
+    db.session.delete(entry)
+    db.session.commit()
+    flash(f"Deleted tasting of {name}.", "success")
+    return redirect(url_for("wine_cellar.history"))
+
+
+def _summary_stats(entries):
+    scored = [e for e in entries if e.average_score is not None]
+    varietal_counts = {}
+    for e in entries:
+        varietal = (e.bottle.varietal if e.bottle else None) or "Unknown"
+        varietal_counts[varietal] = varietal_counts.get(varietal, 0) + 1
+
+    return {
+        "count": len(entries),
+        "average_score": (
+            sum(e.average_score for e in scored) / len(scored) if scored else None
+        ),
+        "top_wine": max(scored, key=lambda e: e.average_score, default=None),
+        "top_varietals": sorted(varietal_counts.items(), key=lambda kv: -kv[1])[:5],
+    }
+
+
+@wine_cellar_bp.route("/history/summary")
+def summary():
+    start_raw = (request.args.get("start") or "").strip()
+    end_raw = (request.args.get("end") or "").strip()
+
+    start = None
+    end = None
+    errors = []
+    try:
+        start = _parse_date(start_raw)
+    except ValueError:
+        errors.append("Start date must be a valid date.")
+    try:
+        end = _parse_date(end_raw)
+    except ValueError:
+        errors.append("End date must be a valid date.")
+
+    entries = []
+    stats = None
+    if start_raw or end_raw:
+        query = TastingHistory.query
+        if start:
+            query = query.filter(TastingHistory.consumed_date >= start)
+        if end:
+            query = query.filter(TastingHistory.consumed_date <= end)
+        entries = query.order_by(TastingHistory.consumed_date.desc()).all()
+        stats = _summary_stats(entries)
+
+    return render_template(
+        "wine_cellar/summary.html",
+        start=start_raw,
+        end=end_raw,
+        stats=stats,
+        errors=errors,
+    )
+
+
+@wine_cellar_bp.route("/history/year-review/<int:year>")
+def year_review(year):
+    entries = TastingHistory.query.filter(
+        func.extract("year", TastingHistory.consumed_date) == year
+    ).order_by(TastingHistory.consumed_date.asc()).all()
+
+    stats = _summary_stats(entries)
+
+    month_counts = [0] * 12
+    for e in entries:
+        month_counts[e.consumed_date.month - 1] += 1
+    busiest_month = None
+    if entries:
+        busiest_index = max(range(12), key=lambda i: month_counts[i])
+        if month_counts[busiest_index] > 0:
+            busiest_month = date(year, busiest_index + 1, 1).strftime("%B")
+
+    available_years = sorted(
+        {
+            d.year
+            for (d,) in db.session.query(TastingHistory.consumed_date).all()
+        },
+        reverse=True,
+    )
+
+    return render_template(
+        "wine_cellar/year_review.html",
+        year=year,
+        stats=stats,
+        busiest_month=busiest_month,
+        available_years=available_years,
+    )
