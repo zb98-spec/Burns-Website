@@ -1,0 +1,37 @@
+{% for entry in entries %}
+  <div class="tasting-card" tabindex="0">
+    {% if entry.image %}
+      <img class="tasting-card-image" src="{{ url_for('wine_cellar.tasting_image', tasting_id=entry.id) }}" alt="">
+    {% endif %}
+    <div class="tasting-card-body">
+      <div class="tasting-card-header">
+        <h2>{{ entry.wine_name }}</h2>
+        {% if entry.average_score is not none %}
+          <span class="badge badge--score">{{ "%.0f"|format(entry.average_score) }}</span>
+        {% endif %}
+      </div>
+      <p class="tasting-card-meta">
+        {{ entry.producer or "" }}{% if entry.producer and entry.vintage %} &middot; {% endif %}{{ entry.vintage or "" }}
+      </p>
+      <p class="tasting-card-meta">{{ entry.consumed_date }}</p>
+      <p class="tasting-card-meta tasting-card-timestamp">Logged {{ entry.created_at.strftime("%b %d, %Y %I:%M %p") }}</p>
+      {% if entry.notes %}
+        <p class="tasting-card-notes">{{ entry.notes }}</p>
+      {% endif %}
+
+      {% if entry.scores %}
+        <div class="score-popover">
+          <ul>
+            {% for s in entry.scores %}
+              <li>{{ s.taster_name }}: {{ s.score }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <form class="tasting-card-delete" method="post" action="{{ url_for('wine_cellar.delete_tasting', tasting_id=entry.id) }}" onsubmit="return confirm('Delete this tasting?');">
+        <button type="submit" class="btn btn--danger btn--small">Delete</button>
+      </form>
+    </div>
+  </div>
+{% endfor %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Tasting Summary{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Tasting Summary</h1>
+    <div class="page-header-actions">
+      <a class="btn" href="{{ url_for('wine_cellar.history') }}">Back to Tastings</a>
+    </div>
+  </div>
+
+  <form method="get" class="summary-form">
+    <label>
+      From
+      <input type="date" name="start" value="{{ start }}">
+    </label>
+    <label>
+      To
+      <input type="date" name="end" value="{{ end }}">
+    </label>
+    <button type="submit" class="btn btn--primary">Summarize</button>
+  </form>
+
+  {% if errors %}
+    {% for error in errors %}
+      <p class="flash flash--error">{{ error }}</p>
+    {% endfor %}
+  {% endif %}
+
+  {% if stats %}
+    {% if stats.count == 0 %}
+      <p>No tastings logged in that range.</p>
+    {% else %}
+      <div class="summary-stats">
+        <div class="summary-stat">
+          <span class="summary-stat-value">{{ stats.count }}</span>
+          <span class="summary-stat-label">Tastings</span>
+        </div>
+        {% if stats.average_score is not none %}
+          <div class="summary-stat">
+            <span class="summary-stat-value">{{ "%.1f"|format(stats.average_score) }}</span>
+            <span class="summary-stat-label">Average Score</span>
+          </div>
+        {% endif %}
+        {% if stats.top_wine %}
+          <div class="summary-stat">
+            <span class="summary-stat-value">{{ stats.top_wine.wine_name }}</span>
+            <span class="summary-stat-label">Top Rated ({{ "%.0f"|format(stats.top_wine.average_score) }})</span>
+          </div>
+        {% endif %}
+      </div>
+
+      {% if stats.top_varietals %}
+        <h2>Top Varietals</h2>
+        <ul class="summary-list">
+          {% for varietal, count in stats.top_varietals %}
+            <li>{{ varietal }} &mdash; {{ count }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endif %}
+  {% endif %}
+{% endblock %}

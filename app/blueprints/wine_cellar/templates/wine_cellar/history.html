@@ -7,46 +7,38 @@
     <h1>Wine Tasting</h1>
     <div class="page-header-actions">
       <a class="btn" href="{{ url_for('wine_cellar.index') }}">Wine Cellar</a>
+      <a class="btn" href="{{ url_for('wine_cellar.summary') }}">Summarize</a>
+      <a class="btn" href="{{ url_for('wine_cellar.year_review', year=current_year) }}">Year in Review</a>
       <a class="btn btn--primary" href="{{ url_for('wine_cellar.add_tasting') }}">Add a Tasting</a>
     </div>
   </div>
 
   {% if entries %}
-    <div class="tasting-grid">
-      {% for entry in entries %}
-        <div class="tasting-card" tabindex="0">
-          {% if entry.image %}
-            <img class="tasting-card-image" src="{{ url_for('wine_cellar.tasting_image', tasting_id=entry.id) }}" alt="">
-          {% endif %}
-          <div class="tasting-card-body">
-            <div class="tasting-card-header">
-              <h2>{{ entry.wine_name }}</h2>
-              {% if entry.average_score is not none %}
-                <span class="badge badge--score">{{ "%.0f"|format(entry.average_score) }}</span>
-              {% endif %}
-            </div>
-            <p class="tasting-card-meta">
-              {{ entry.producer or "" }}{% if entry.producer and entry.vintage %} &middot; {% endif %}{{ entry.vintage or "" }}
-            </p>
-            <p class="tasting-card-meta">{{ entry.consumed_date }}</p>
-            {% if entry.notes %}
-              <p class="tasting-card-notes">{{ entry.notes }}</p>
-            {% endif %}
-
-            {% if entry.scores %}
-              <div class="score-popover">
-                <ul>
-                  {% for s in entry.scores %}
-                    <li>{{ s.taster_name }}: {{ s.score }}</li>
-                  {% endfor %}
-                </ul>
-              </div>
-            {% endif %}
-          </div>
-        </div>
-      {% endfor %}
+    <div class="tasting-grid" id="tasting-grid">
+      {% include "wine_cellar/_tasting_cards.html" %}
     </div>
+    {% if has_more %}
+      <div class="tasting-load-more">
+        <button type="button" class="btn" id="load-more-btn" data-offset="{{ offset }}">Load more</button>
+      </div>
+    {% endif %}
   {% else %}
     <p>No tastings logged yet.</p>
   {% endif %}
+
+  <script>
+    document.getElementById('load-more-btn')?.addEventListener('click', async function () {
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+      const resp = await fetch(`{{ url_for('wine_cellar.history_more') }}?offset=${btn.dataset.offset}`);
+      const data = await resp.json();
+      const doc = new DOMParser().parseFromString(data.html, 'text/html');
+      document.getElementById('tasting-grid').append(...doc.body.childNodes);
+      btn.dataset.offset = data.offset;
+      btn.disabled = false;
+      btn.textContent = 'Load more';
+      if (!data.has_more) btn.remove();
+    });
+  </script>
 {% endblock %}

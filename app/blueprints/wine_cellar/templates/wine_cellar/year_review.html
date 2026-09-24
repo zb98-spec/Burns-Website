@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ year }} Year in Review{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>{{ year }} in Wine</h1>
+    <div class="page-header-actions">
+      {% if available_years|length > 1 %}
+        <form method="get" action="" class="year-review-picker">
+          <select onchange="location.href = this.value" class="year-review-select">
+            {% for y in available_years %}
+              <option value="{{ url_for('wine_cellar.year_review', year=y) }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      {% endif %}
+      <a class="btn" href="{{ url_for('wine_cellar.history') }}">Back to Tastings</a>
+    </div>
+  </div>
+
+  {% if stats.count == 0 %}
+    <p>No tastings logged in {{ year }}.</p>
+  {% else %}
+    <div class="year-review-wrap">
+      <div class="year-review-slide">
+        <span class="year-review-number">{{ stats.count }}</span>
+        <span class="year-review-caption">bottles tasted in {{ year }}</span>
+      </div>
+
+      {% if stats.average_score is not none %}
+        <div class="year-review-slide">
+          <span class="year-review-number">{{ "%.1f"|format(stats.average_score) }}</span>
+          <span class="year-review-caption">average score</span>
+        </div>
+      {% endif %}
+
+      {% if stats.top_wine %}
+        <div class="year-review-slide">
+          <span class="year-review-number">{{ stats.top_wine.wine_name }}</span>
+          <span class="year-review-caption">your top wine, scored {{ "%.0f"|format(stats.top_wine.average_score) }}</span>
+        </div>
+      {% endif %}
+
+      {% if stats.top_varietals %}
+        <div class="year-review-slide">
+          <span class="year-review-number">{{ stats.top_varietals[0][0] }}</span>
+          <span class="year-review-caption">your favorite varietal, {{ stats.top_varietals[0][1] }} times</span>
+        </div>
+      {% endif %}
+
+      {% if busiest_month %}
+        <div class="year-review-slide">
+          <span class="year-review-number">{{ busiest_month }}</span>
+          <span class="year-review-caption">your busiest tasting month</span>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}
